@@ -1,0 +1,23 @@
+{
+  "name": "frog-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "model": "python3 -I scripts/shrink-model.py"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.63.2",
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "wrangler": "^4.150.0"
+  }
+}

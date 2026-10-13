@@ -1,0 +1,94 @@
+:root {
+  --water-deep: #040b08;
+  --fg: #ece6d6;
+  --muted: #8fa597;
+  --accent: #c9df7a;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body {
+  background: var(--water-deep);
+  color: var(--fg);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+main {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: clamp(40px, 11vh, 110px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+h1 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  /* Letter-spacing adds space after the last letter too; balance it. */
+  margin-right: -0.3em;
+}
+
+.tagline {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 1.6rem;
+  margin-top: 0.5rem;
+  pointer-events: auto;
+}
+
+nav a,
+nav button {
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+nav a:focus-visible,
+nav button:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+/* Only real pointers hover; on touch screens a tapped link would stay lit. */
+@media (hover: hover) {
+  nav a:hover,
+  nav button:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+}

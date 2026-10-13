@@ -1,0 +1,14 @@
+node_modules
+dist
+.DS_Store
+*.blend1
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
+
+# local editor/agent config
+.claude/
