@@ -143,18 +143,18 @@ document.fonts.ready.then(layout);
   frog.placeOn(name, name.a.distanceTo(name.b) * 0.5, 1);
 }
 
-window.addEventListener("pointerdown", (e) => frog.poke(toWorld(e.clientX, e.clientY)));
-
 // Hold the scene back until the frog has loaded, so the pond and the frog
 // appear together rather than the frog popping in afterwards.
 frogReady.then(() => {
   const clock = new THREE.Clock();
-  renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), 0.1);
+  const step = (dt: number) => {
     frog.update(dt);
     pond.update(dt);
     dither.render(scene, camera);
-  });
+  };
+  renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
+  // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
+  if (import.meta.env.DEV) Object.assign(window, { step });
 });
 
 // A clicked link opens in a new tab but keeps focus here, so coming back

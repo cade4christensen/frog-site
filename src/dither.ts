@@ -37,7 +37,12 @@ const fragmentShader = /* glsl */ `
 
     float threshold = bayer4(c) + 0.03;
     vec4 s = texture2D(tScene, uv);
-    if (s.a >= 0.5) {
+    // A lone frog cell with no frog neighbour is a sliver (a fingertip, a toe
+    // edge) that would show as a stray dot; let the pond show through instead.
+    vec2 px = 1.0 / gridSize;
+    float around = step(0.5, texture2D(tScene, uv + vec2(px.x, 0.0)).a) + step(0.5, texture2D(tScene, uv - vec2(px.x, 0.0)).a)
+                 + step(0.5, texture2D(tScene, uv + vec2(0.0, px.y)).a) + step(0.5, texture2D(tScene, uv - vec2(0.0, px.y)).a);
+    if (s.a >= 0.5 && around >= 1.0) {
       // Render target holds linear light; convert to perceived brightness.
       float lum = pow(dot(s.rgb, vec3(0.299, 0.587, 0.114)), 1.0 / 2.2);
       lum = clamp((lum - black) / (white - black), 0.0, 1.0);
