@@ -27,6 +27,7 @@ export class Pond {
 
   private w = 0;
   private h = 0;
+  private scroll = 0; // the pond sits in the page's hero, so it scrolls away with it
   private ripples: Ripple[] = [];
   private fireflies: Firefly[] = [];
   private time = 0;
@@ -115,6 +116,11 @@ export class Pond {
   }
 
   /** Match the dot grid: one canvas pixel per dot cell. Drawing stays in CSS px. */
+  /** Where the page is scrolled to; the pond and everything on it are drawn that much higher. */
+  setScroll(y: number) {
+    this.scroll = y;
+  }
+
   setSize(gridW: number, gridH: number) {
     this.w = window.innerWidth;
     this.h = window.innerHeight;
@@ -128,8 +134,11 @@ export class Pond {
     const { ctx, w, h } = this;
 
     ctx.globalCompositeOperation = "source-over";
+    const { a: sx, d: sy } = ctx.getTransform();
+    ctx.setTransform(sx, 0, 0, sy, 0, 0);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, w, h);
+    ctx.setTransform(sx, 0, 0, sy, 0, -this.scroll * sy);
     // Additive so the red and green channels stay independent.
     ctx.globalCompositeOperation = "lighter";
 

@@ -10,9 +10,10 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 // A flat, front-on view, like looking into a terrarium. World units are CSS
-// pixels with y up: page point (x, y) is world (x, -y), so the page's top
-// left corner is the origin. The scene fills the hero, the first screen of
-// the page, and scrolls away with it.
+// pixels with y up: screen point (x, y) is world (x, -y), so the screen's top
+// left corner is the origin. The scene is fixed to the screen, so the frog
+// comes along as you scroll: the floor and walls are the screen's edges, and
+// the things on the page it can perch on slide past with the page.
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
 camera.position.z = 1000;
@@ -41,6 +42,7 @@ const frog = new Frog({
 // The text the frog must never overlap (screen rects, in CSS px).
 let textBoxes: DOMRect[] = [];
 const textEls = [...document.querySelectorAll<HTMLElement>("#hero h1, #hero .tagline, #hero nav")];
+let heroText: DOMRect[] = []; // the same, in page coordinates
 /** An element's box in page coordinates, so scrolling doesn't move it. */
 function pageRect(el: HTMLElement) {
   const r = el.getBoundingClientRect();
@@ -61,32 +63,34 @@ if (import.meta.env.DEV) Object.assign(window, { frog });
 
 const hero = document.querySelector<HTMLElement>("#hero")!;
 const nameEl = hero.querySelector<HTMLElement>("h1")!;
+const topbar = document.querySelector<HTMLElement>("#topbar")!;
+// Further down the page: the tops of the boxes between the text, where
+// there's room above for a frog to sit.
+const perchEls: [string, HTMLElement | null][] = [
+  ["edu", document.querySelector(".edu")],
+  ["projects", document.querySelector(".projects")],
+  ["skills", document.querySelector(".skills")],
+  ["contact", document.querySelector(".contact-links")],
+  ["footer", document.querySelector(".content footer")],
+];
 
-/** A ledge along the top of an element, e.g. the frog sitting on your name. */
+/** A ledge along the top of an element (page coordinates), e.g. the frog sitting on your name. */
 function topOf(id: string, el: HTMLElement): Surface {
   const r = pageRect(el);
   return { id, a: toWorld(r.left, r.top), b: toWorld(r.right, r.top), normal: UP };
 }
 
 /**
- * Everything the frog can stand on: the floor, both side walls, the top of
- * the name, and two invisible ledges between the name and the pond.
+ * Everything on the page the frog can perch on, in page coordinates: the top
+ * of the name, two invisible ledges between the name and the pond, and the
+ * boxes further down.
  */
-function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape): Surface[] {
-  const floor = h - 1;
-  const wallTop = h * 0.06;
-  const out: Surface[] = [
-    { id: "floor", a: toWorld(0, floor), b: toWorld(w, floor), normal: UP },
-    // Walls run bottom to top, so "forward" on them is climbing.
-    { id: "wall-left", a: toWorld(0, floor), b: toWorld(0, wallTop), normal: new THREE.Vector3(1, 0, 0) },
-    { id: "wall-right", a: toWorld(w, floor), b: toWorld(w, wallTop), normal: new THREE.Vector3(-1, 0, 0) },
-    // Only the name: anything below it would put the frog over the other text.
-    topOf("name", nameEl),
-  ];
+function buildPerches(w: number, frogLength: number, pool: PoolShape): Surface[] {
+  const out: Surface[] = [topOf("name", nameEl)];
 
   const pondBottom = pool.cy + pool.ry;
-  const nameTop = pageRect(nameEl).top;
-  const gap = nameTop - pondBottom;
+  const name = pageRect(nameEl);
+  const gap = name.top - pondBottom;
   if (gap > frogLength * 1.2) {
     const width = Math.max(frogLength * 2, w * 0.16);
     // Out toward the sides, but never beyond a leap from the name: on wide
@@ -105,7 +109,6 @@ function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape
     // No room above the name (short screens): put the ledges level with it,
     // one each side, so the frog can hop off and down past the text rather
     // than being stuck on the name.
-    const name = pageRect(nameEl);
     const width = frogLength * 2;
     const off = frogLength * 1.2;
     const left = Math.max(w * 0.03, name.left - off - width);
@@ -115,14 +118,49 @@ function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape
       { id: "ledge-right", a: toWorld(right, name.top), b: toWorld(right + width, name.top), normal: UP },
     );
   }
+  for (const [id, el] of perchEls) if (el) out.push(topOf(id, el));
   return out;
 }
 
+let perches: Surface[] = [];
 let laidOut = { w: 0, h: 0 };
+let syncedScroll = NaN;
+
+/**
+ * Rebuilds the frog's world for where the page is scrolled to: the screen's
+ * floor and walls, plus the perches shifted up the screen by the scroll.
+ * Perches too close to the top or bottom edge are still tracked (so a frog
+ * sitting on one rides along) but marked hidden, so it won't head for them.
+ */
+function syncScroll(force = false) {
+  const y = window.scrollY;
+  if (!force && y === syncedScroll) return;
+  syncedScroll = y;
+  const { w, h } = laidOut;
+  const floor = h - 1;
+  const wallTop = h * 0.06;
+  const shift = new THREE.Vector3(0, y, 0); // page to screen, in world units (y up)
+  const ceiling = Math.max(0, topbar.getBoundingClientRect().bottom) + frogLength * 0.6;
+  surfaces = [
+    { id: "floor", a: toWorld(0, floor), b: toWorld(w, floor), normal: UP },
+    // Walls run bottom to top, so "forward" on them is climbing.
+    { id: "wall-left", a: toWorld(0, floor), b: toWorld(0, wallTop), normal: new THREE.Vector3(1, 0, 0) },
+    { id: "wall-right", a: toWorld(w, floor), b: toWorld(w, wallTop), normal: new THREE.Vector3(-1, 0, 0) },
+    ...perches.map((p) => {
+      const top = -p.a.y - y;
+      return { ...p, a: p.a.clone().add(shift), b: p.b.clone().add(shift), hidden: top < ceiling || top > h - frogLength * 0.8 };
+    }),
+  ];
+  textBoxes = heroText.map((r) => new DOMRect(r.x, r.y - y, r.width, r.height));
+  pond.setScroll(y);
+  frog.refresh();
+}
+
 function layout() {
   const { innerWidth: w, innerHeight: h } = window;
   laidOut = { w, h };
   hero.style.height = `${h}px`;
+  canvas.style.height = `${h}px`;
   renderer.setSize(w, h, false);
   camera.left = 0;
   camera.right = w;
@@ -134,14 +172,14 @@ function layout() {
   frogLength = THREE.MathUtils.clamp(Math.min(w, h) * 0.2, 70, 150);
   frog.setLength(frogLength);
 
-  // The pond: a faint oval in the background, a little above the middle.
+  // The pond: a faint oval in the hero's background, a little above the middle.
   const rx = Math.min(w * 0.38, 400);
   const pool: PoolShape = { cx: w / 2, cy: h * 0.42, rx, ry: rx * 0.2 };
   pond.setPool(pool);
 
-  textBoxes = textEls.map(pageRect);
-  surfaces = buildSurfaces(w, h, frogLength, pool);
-  frog.refresh();
+  heroText = textEls.map(pageRect);
+  perches = buildPerches(w, frogLength, pool);
+  syncScroll(true);
 }
 window.addEventListener("resize", () => {
   // Phone browsers resize the viewport as their address bar slides in and out
@@ -160,21 +198,36 @@ document.fonts.ready.then(layout);
   frog.placeOn(name, name.a.distanceTo(name.b) * 0.5, 1);
 }
 
+/** Somewhere in view to leap to when its perch scrolls away: the nearest perch, or the floor. */
+function landingSpot() {
+  const at = frog.root.position;
+  let best = surfaces.find((s) => s.id === "floor")!;
+  let bestDist = Infinity;
+  for (const s of surfaces) {
+    if (s.hidden || s.id.startsWith("wall")) continue;
+    const x = THREE.MathUtils.clamp(at.x, Math.min(s.a.x, s.b.x), Math.max(s.a.x, s.b.x));
+    const d = Math.hypot(x - at.x, s.a.y - at.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = s;
+    }
+  }
+  return best;
+}
+
 // Hold the scene back until the frog has loaded, so the pond and the frog
 // appear together rather than the frog popping in afterwards.
 frogReady.then(() => {
   const clock = new THREE.Clock();
   const step = (dt: number) => {
+    syncScroll();
+    // Its perch is scrolling off the screen: it leaps after you.
+    if (frog.perch?.hidden && !frog.airborne) frog.leapTo(landingSpot());
     frog.update(dt);
     pond.update(dt);
     dither.render(scene, camera);
   };
-  const loop = () => step(Math.min(clock.getDelta(), 0.1));
-  // Only animate while the hero is on screen; scrolled past it, the frog sleeps.
-  new IntersectionObserver(([entry]) => {
-    clock.getDelta(); // don't count the time spent off screen
-    renderer.setAnimationLoop(entry.isIntersecting ? loop : null);
-  }).observe(hero);
+  renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
   // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
   if (import.meta.env.DEV) Object.assign(window, { step });
 });

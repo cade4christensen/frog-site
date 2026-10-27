@@ -181,6 +181,8 @@ export interface Surface {
   a: THREE.Vector3;
   b: THREE.Vector3;
   normal: THREE.Vector3;
+  /** Scrolled (nearly) out of view: still tracked, but not somewhere to head for. */
+  hidden?: boolean;
 }
 
 /** What the frog needs to know about the page it lives on. */
@@ -656,6 +658,41 @@ export class Frog {
     this.dir = dir;
     this.root.position.copy(this.pointOn(surface, this.s));
     this.root.quaternion.copy(this.facing());
+  }
+
+  /** What it's standing on (or leaping to). */
+  get perch() {
+    return this.state === "jumping" ? this.jump.surface : this.surface;
+  }
+
+  /** In the middle of a leap, which it finishes before doing anything else. */
+  get airborne() {
+    return this.state === "jumping" || this.state === "wallLanding";
+  }
+
+  /**
+   * Drops whatever it was doing and leaps onto `surface`, a little ahead of
+   * straight across from where it is: for when its perch scrolls out of view
+   * and it has to follow.
+   */
+  leapTo(surface: Surface) {
+    if (!this.mixer || !this.surface) return;
+    this.queue = [];
+    this.afterQueue = undefined;
+    this.then = undefined;
+    this.resumeAfterLook = false;
+    this.pendingWallHop = null;
+    this.resumeCrawl = false;
+    this.turnStage = null;
+    this.turnFix = undefined;
+    this.peeking = false;
+    this.sleepy = false;
+    const across = new THREE.Vector3().subVectors(this.root.position, surface.a).dot(tangentOf(surface));
+    const ahead = tangentOf(this.surface).x * this.dir >= 0 ? 1 : -1;
+    const s = this.clampS(surface, across + ahead * Math.sign(tangentOf(surface).x || 1) * this.length * (0.3 + Math.random() * 0.7));
+    this.goal = s;
+    // `turned`: no stopping to turn round first, its perch is going.
+    this.jumpTo(surface, s, true);
   }
 
   /** Call after the surfaces move (resize, fonts loading) to stay attached. */
@@ -1418,7 +1455,7 @@ export class Frog {
     const here = this.surface!;
     // Never straight across from one wall to the other: too far for a frog.
     const isWall = (x: Surface) => x.id.startsWith("wall");
-    const others = this.world.surfaces().filter((x) => x.id !== here.id && !(isWall(here) && isWall(x)));
+    const others = this.world.surfaces().filter((x) => x.id !== here.id && !x.hidden && !(isWall(here) && isWall(x)));
     if (!others.length) return;
     let best: { surface: Surface; s: number } | undefined;
     let bestScore = -Infinity;

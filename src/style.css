@@ -24,16 +24,20 @@ body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 
-/* The first screen: the frog's terrarium. Its height is set from JS to the
-   viewport height, so the scene and the page agree on where the floor is. */
+/* The first screen, with the pond. Its height is set from JS to the viewport
+   height, so the scene and the page agree on where the floor is. */
 #hero {
   position: relative;
   height: 100vh;
   overflow: hidden;
 }
 
+/* The frog's scene stays on the screen as you scroll, over the page (it's
+   transparent between the dots) but letting clicks through. */
 #scene {
-  position: absolute;
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
   inset: 0;
   width: 100%;
   height: 100%;
