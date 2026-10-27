@@ -3,11 +3,18 @@
   --fg: #ece6d6;
   --muted: #8fa597;
   --accent: #c9df7a;
+  --panel: #08130e;
+  --line: #17271e;
+  --dim: #4f6357;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
@@ -17,16 +24,24 @@ body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+/* The first screen: the frog's terrarium. Its height is set from JS to the
+   viewport height, so the scene and the page agree on where the floor is. */
+#hero {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+
 #scene {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
 }
 
-main {
-  position: fixed;
+#hero main {
+  position: absolute;
   left: 16px;
   right: 16px;
   bottom: clamp(40px, 11vh, 110px);
@@ -38,7 +53,7 @@ main {
   pointer-events: none;
 }
 
-h1 {
+#hero h1 {
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: 0.3em;
@@ -52,7 +67,7 @@ h1 {
   color: var(--muted);
 }
 
-nav {
+#hero nav {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -61,8 +76,8 @@ nav {
   pointer-events: auto;
 }
 
-nav a,
-nav button {
+#hero nav a,
+#hero nav button {
   font: inherit;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
@@ -77,8 +92,8 @@ nav button {
   transition: color 0.2s, border-color 0.2s;
 }
 
-nav a:focus-visible,
-nav button:focus-visible {
+#hero nav a:focus-visible,
+#hero nav button:focus-visible {
   color: var(--accent);
   border-bottom-color: var(--accent);
   outline: none;
@@ -86,9 +101,505 @@ nav button:focus-visible {
 
 /* Only real pointers hover; on touch screens a tapped link would stay lit. */
 @media (hover: hover) {
-  nav a:hover,
-  nav button:hover {
+  #hero nav a:hover,
+  #hero nav button:hover {
     color: var(--accent);
     border-bottom-color: var(--accent);
+  }
+}
+
+/* ── Below the frog ───────────────────────────────────────────── */
+
+.scroll-cue {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.scroll-cue svg {
+  animation: bob 1.8s ease-in-out infinite;
+}
+.scroll-cue:hover,
+.scroll-cue:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+#topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 14px max(16px, calc((100vw - 960px) / 2));
+  background: rgba(4, 11, 8, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: translateY(-100%);
+  transition: transform 0.25s ease;
+}
+#topbar.shown {
+  transform: none;
+}
+#topbar a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+#topbar a:hover,
+#topbar a.current {
+  color: var(--accent);
+}
+.topbar-name {
+  letter-spacing: 0.24em;
+  color: var(--fg) !important;
+  white-space: nowrap;
+}
+.topbar-links {
+  display: flex;
+  gap: 1.4rem;
+}
+
+.content {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 16px;
+  font-family: Inter, system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+section {
+  padding: 96px 0 24px;
+  scroll-margin-top: 24px;
+}
+
+.label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.8rem;
+}
+
+h2 {
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 2rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.lede {
+  font-size: clamp(1.1rem, 2.4vw, 1.35rem);
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 44rem;
+}
+.lede b {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.edu {
+  margin-top: 2.5rem;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.edu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.edu ul {
+  padding-left: 1.1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.edu li + li {
+  margin-top: 0.35rem;
+}
+.edu li::marker {
+  color: var(--accent);
+}
+
+.pill {
+  flex-shrink: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid currentColor;
+  padding: 3px 8px;
+}
+
+.projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card p {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.card .num {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--dim);
+}
+a.card:hover,
+a.card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+a.card:hover .card-link {
+  color: var(--accent);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin-top: auto;
+}
+.tags li {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.66rem;
+  color: var(--accent);
+  background: rgba(201, 223, 122, 0.07);
+  padding: 2px 8px;
+}
+
+.card-link {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  transition: color 0.2s;
+}
+
+.skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1px;
+  list-style: none;
+  padding: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.skills li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--water-deep);
+}
+.skills b {
+  display: block;
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+.skills small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.glyph {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: var(--accent);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+#contact {
+  padding-top: 120px;
+}
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2rem;
+}
+.button {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  padding: 10px 18px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.button:hover,
+.button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--water-deep);
+}
+.button.primary:hover {
+  background: transparent;
+  color: var(--accent);
+}
+.mail {
+  margin-top: 1.2rem;
+  font-size: 0.85rem;
+}
+.mail a {
+  color: inherit;
+}
+
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 96px;
+  padding: 24px 0 88px;
+  border-top: 1px solid var(--line);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  color: var(--dim);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Chat */
+#chat-toggle {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  color: var(--water-deep);
+  background: var(--accent);
+  border: 0;
+  cursor: pointer;
+  transition: opacity 0.25s, transform 0.25s;
+}
+/* Keep the frog's screen clean; the chat shows up once you scroll into the page. */
+body:not(.past-hero) #chat-toggle {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+#chat-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  z-index: 20;
+  width: min(360px, calc(100vw - 32px));
+  height: min(520px, 70vh);
+  display: none;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.88rem;
+}
+#chat-panel.open {
+  display: flex;
+}
+.chat-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-title {
+  font-weight: 600;
+}
+.chat-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.chat-close {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 8px 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.chat-msg.bot {
+  align-self: flex-start;
+  background: var(--water-deep);
+  border: 1px solid var(--line);
+}
+.chat-msg.user {
+  align-self: flex-end;
+  background: rgba(201, 223, 122, 0.12);
+  color: var(--fg);
+}
+.chat-msg.typing {
+  color: var(--dim);
+}
+.chat-msg.err {
+  align-self: flex-start;
+  color: #e8a08a;
+}
+.chat-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+}
+.chat-suggest button {
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.chat-suggest button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.chat-form {
+  display: flex;
+  border-top: 1px solid var(--line);
+}
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  padding: 12px 16px;
+  outline: none;
+}
+.chat-form button {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--line);
+  padding: 0 16px;
+  cursor: pointer;
+}
+.chat-form button:disabled {
+  color: var(--dim);
+}
+
+@media (max-width: 560px) {
+  .tagline span {
+    display: block;
+  }
+  .tagline .sep {
+    display: none;
+  }
+  .topbar-name {
+    display: none;
+  }
+  #topbar {
+    justify-content: center;
+  }
+  section {
+    padding-top: 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .scroll-cue svg {
+    animation: none;
   }
 }

@@ -4,19 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cade Christensen</title>
-    <meta name="description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta name="description" content="Cade Christensen, CS student at the University of Utah and software engineering intern. Projects, skills and resume, with a pixel-rendered 3D frog on top." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://cade.work/" />
     <meta property="og:site_name" content="cade.work" />
     <meta property="og:title" content="Cade Christensen" />
-    <meta property="og:description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta property="og:description" content="CS student at the University of Utah and software engineering intern. Projects, skills and resume, with a pixel-rendered 3D frog on top." />
     <meta property="og:image" content="https://cade.work/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A dithered pixel frog above the name Cade Christensen" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cade Christensen" />
-    <meta name="twitter:description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta name="twitter:description" content="CS student at the University of Utah and software engineering intern. Projects, skills and resume, with a pixel-rendered 3D frog on top." />
     <meta name="twitter:image" content="https://cade.work/og.png" />
     <link rel="canonical" href="https://cade.work/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
@@ -26,21 +26,188 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <main>
-      <h1>Cade Christensen</h1>
-      <p class="tagline">Software Engineering Intern</p>
-      <nav>
-        <a href="https://github.com/cade4christensen" target="_blank" rel="noreferrer">GitHub</a>
-        <a href="https://www.linkedin.com/in/cade-christensen-90ab13266/" target="_blank" rel="noreferrer">LinkedIn</a>
-        <button id="email" type="button" data-email="cadeachristensen@gmail.com">Email</button>
-      </nav>
-    </main>
+    <header id="hero">
+      <canvas id="scene"></canvas>
+      <main>
+        <h1>Cade Christensen</h1>
+        <p class="tagline"><span>CS @ University of Utah</span><span class="sep"> · </span><span>Software Engineering Intern</span></p>
+        <nav>
+          <a href="https://github.com/cade4christensen" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://www.linkedin.com/in/cade-a-christensen/" target="_blank" rel="noreferrer">LinkedIn</a>
+          <a href="https://docs.google.com/document/d/1Pmk3UHqvAf6tBqVRxLBQyllDxft1SfVen-CpoM2I6Eo/export?format=pdf" target="_blank" rel="noreferrer">Resume</a>
+          <button id="email" type="button" data-email="cadeachristensen@gmail.com">Email</button>
+        </nav>
+      </main>
+      <a class="scroll-cue" href="#about">
+        <span>Work</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" /></svg>
+      </a>
+    </header>
+
+    <nav id="topbar" aria-label="Sections">
+      <a class="topbar-name" href="#hero">Cade Christensen</a>
+      <div class="topbar-links">
+        <a href="#about">About</a>
+        <a href="#projects">Projects</a>
+        <a href="#skills">Skills</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </nav>
+
+    <div class="content">
+      <section id="about">
+        <p class="label">About</p>
+        <p class="lede">
+          CS student at the <b>University of Utah</b> and software engineering intern at
+          <b>dbS Productions</b> and <b>Kingsley Management Company</b>. I build tools, web apps,
+          and the occasional frog.
+        </p>
+        <div class="edu">
+          <div class="edu-head">
+            <div>
+              <h3>University of Utah</h3>
+              <p class="muted">B.S. Computer Science</p>
+            </div>
+            <span class="pill">In progress</span>
+          </div>
+          <ul>
+            <li>Software Engineering Intern at dbS Productions and Kingsley Management Company: geospatial pipelines for search-and-rescue research, internal tooling and automation</li>
+            <li>Full-stack development: networked systems, databases, client-server architecture</li>
+            <li>Software engineering principles: design patterns, testing, scalability</li>
+            <li>Core CS theory: data structures, algorithms, computability</li>
+            <li>Systems programming in C++ and low-level concepts</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="projects">
+        <p class="label">Projects</p>
+        <h2>What I've built</h2>
+        <div class="projects">
+          <article class="card reveal">
+            <p class="num">01</p>
+            <h3>Metomorph</h3>
+            <p>A habit and goal tracker built on a frog-metamorphosis metaphor: each cycle is a self-improvement period, good habits grow limbs, bad habits shed the tail, and an analytics page charts it all. Django REST backend with JWT auth, React + TypeScript front end.</p>
+            <ul class="tags"><li>Django</li><li>React</li><li>TypeScript</li><li>Postgres</li></ul>
+            <span class="card-link muted">In development · private repo</span>
+          </article>
+
+          <article class="card reveal">
+            <p class="num">02</p>
+            <h3>ADS-B Search &amp; Rescue Pipeline</h3>
+            <p>Automated a six-step aviation SAR research checklist at dbS Productions: parse 400+ AFRCC workbooks, match tail numbers to NTSB cases, scrape flight tracks from dockets and ADS-B Exchange, and compute last-known-position metrics for a published book chapter.</p>
+            <ul class="tags"><li>Python</li><li>pandas</li><li>37 tests</li></ul>
+            <span class="card-link muted">Internship work · private repo</span>
+          </article>
+
+          <a class="card reveal" href="https://github.com/cade4christensen/Geo-Analyzer" target="_blank" rel="noreferrer">
+            <p class="num">03</p>
+            <h3>Geo Analyzer</h3>
+            <p>Turn a latitude/longitude into search-planning data: distance to the nearest road, trail, railroad, utility line and water; the surface at that point; and a population class. OSM, NLCD land cover and TIGER roads behind a Streamlit UI and a batch CLI.</p>
+            <ul class="tags"><li>Python</li><li>Shapely</li><li>Streamlit</li></ul>
+            <span class="card-link">View on GitHub →</span>
+          </a>
+
+          <a class="card reveal" href="https://github.com/cade4christensen/Jormunvector" target="_blank" rel="noreferrer">
+            <p class="num">04</p>
+            <h3>Jormunvector</h3>
+            <p>A browser vector-drawing editor built on Canvas: line, Bézier, freehand (with RDP simplification), ellipse and rectangle tools, node-level editing, stroke expansion with tapers and caps, and text prompts that generate shapes.</p>
+            <ul class="tags"><li>JavaScript</li><li>Canvas</li><li>Vite</li></ul>
+            <span class="card-link">View on GitHub →</span>
+          </a>
+
+          <a class="card reveal" href="https://github.com/cade4christensen/own-it" target="_blank" rel="noreferrer">
+            <p class="num">05</p>
+            <h3>Own It</h3>
+            <p>A live training game on accountability. Players join from their phones, rewrite a workplace excuse anonymously each round, and the room votes. Host view, projector view with QR code, podium at the end. No logins, just a polling API.</p>
+            <ul class="tags"><li>PHP</li><li>Laravel</li><li>SQL</li></ul>
+            <span class="card-link">View on GitHub →</span>
+          </a>
+
+          <a class="card reveal" href="#hero">
+            <p class="num">06</p>
+            <h3>The frog up top</h3>
+            <p>The frog at the top of this page actually lives there: it climbs the walls, perches on my name, jumps between ledges and falls asleep when you leave it alone. Ortho camera, dot-grid rendering, all frog behavior written from scratch.</p>
+            <ul class="tags"><li>TypeScript</li><li>Three.js</li><li>Cloudflare</li></ul>
+            <span class="card-link">Go say hi ↑</span>
+          </a>
+        </div>
+      </section>
+
+      <section id="skills">
+        <p class="label">Skills</p>
+        <h2>What I work with, AI first</h2>
+        <ul class="skills">
+          <li class="reveal"><span class="glyph">AI</span><div><b>AI-assisted development</b><small>Claude Code · Codex · ChatGPT, daily driver</small></div></li>
+          <li class="reveal"><span class="glyph">LLM</span><div><b>LLM integration</b><small>Gemini &amp; Claude APIs · the chatbot on this page</small></div></li>
+          <li class="reveal"><span class="glyph">Py</span><div><b>Python</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">TS</span><div><b>TypeScript</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">JS</span><div><b>JavaScript</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">C#</span><div><b>C#</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">Jv</span><div><b>Java</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">C++</span><div><b>C++</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">php</span><div><b>PHP</b><small>Language</small></div></li>
+          <li class="reveal"><span class="glyph">Fl</span><div><b>Flutter / Dart</b><small>Mobile</small></div></li>
+          <li class="reveal"><span class="glyph">SQL</span><div><b>SQL / Postgres</b><small>Database</small></div></li>
+          <li class="reveal"><span class="glyph">Dj</span><div><b>Django</b><small>Framework</small></div></li>
+          <li class="reveal"><span class="glyph">Re</span><div><b>React</b><small>Framework</small></div></li>
+          <li class="reveal"><span class="glyph">L</span><div><b>Laravel</b><small>Framework</small></div></li>
+          <li class="reveal"><span class="glyph">3D</span><div><b>Three.js</b><small>3D / WebGL</small></div></li>
+          <li class="reveal"><span class="glyph">Geo</span><div><b>Geospatial</b><small>shapely · pyproj · rasterio</small></div></li>
+          <li class="reveal"><span class="glyph">CF</span><div><b>Cloudflare Workers</b><small>Deployment</small></div></li>
+          <li class="reveal"><span class="glyph">git</span><div><b>Git</b><small>Version control</small></div></li>
+        </ul>
+      </section>
+
+      <section id="contact">
+        <p class="label">Open to work</p>
+        <h2>Let's build something.</h2>
+        <p class="lede">Software engineering roles, internships, contract work, or a project you want a second pair of hands on. My inbox is open.</p>
+        <div class="contact-links">
+          <a class="button primary" href="mailto:cadeachristensen@gmail.com">Email me</a>
+          <a class="button" href="https://github.com/cade4christensen" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="button" href="https://www.linkedin.com/in/cade-a-christensen/" target="_blank" rel="noreferrer">LinkedIn</a>
+          <a class="button" href="https://docs.google.com/document/d/1Pmk3UHqvAf6tBqVRxLBQyllDxft1SfVen-CpoM2I6Eo/export?format=pdf" target="_blank" rel="noreferrer">Resume</a>
+        </div>
+        <p class="muted mail"><a href="mailto:cadeachristensen@gmail.com">cadeachristensen@gmail.com</a></p>
+      </section>
+
+      <footer>
+        <span>© 2026 Cade Christensen</span>
+        <span>Built by hand in Salt Lake City</span>
+      </footer>
+    </div>
+
+    <button id="chat-toggle" aria-label="Ask about Cade" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+    </button>
+    <div id="chat-panel" role="dialog" aria-label="Chat about Cade">
+      <div class="chat-head">
+        <div>
+          <p class="chat-title">Ask about Cade</p>
+          <p class="chat-sub">A small bot that knows his projects. Powered by Gemini.</p>
+        </div>
+        <button class="chat-close" aria-label="Close chat">×</button>
+      </div>
+      <div class="chat-log" id="chat-log">
+        <div class="chat-msg bot">Hi! Ask me anything about Cade's work, skills, or how to get in touch.</div>
+      </div>
+      <div class="chat-suggest">
+        <button>What is he working on now?</button>
+        <button>Tell me about the frog</button>
+        <button>What languages does he use?</button>
+      </div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" type="text" maxlength="500" placeholder="Ask a question…" aria-label="Your question" />
+        <button type="submit" id="chat-send">Send</button>
+      </form>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

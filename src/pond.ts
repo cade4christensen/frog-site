@@ -38,10 +38,15 @@ export class Pond {
   private pads: LilyPad[] = [];
 
   constructor() {
+    // The pond lives in page coordinates, so add the scroll offset.
     window.addEventListener("pointerdown", (e) => {
-      if (this.inPool(e.clientX, e.clientY)) this.addRipple(e.clientX, e.clientY, this.pool.rx * 0.9, 1);
+      const x = e.clientX + window.scrollX;
+      const y = e.clientY + window.scrollY;
+      if (this.inPool(x, y)) this.addRipple(x, y, this.pool.rx * 0.9, 1);
     });
-    window.addEventListener("pointermove", (e) => this.trail(e.clientX, e.clientY, e.timeStamp));
+    window.addEventListener("pointermove", (e) =>
+      this.trail(e.clientX + window.scrollX, e.clientY + window.scrollY, e.timeStamp),
+    );
   }
 
   // Where the pointer last left a wake ripple, so a drag leaves an evenly spaced trail.

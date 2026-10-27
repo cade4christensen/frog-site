@@ -3,14 +3,16 @@ import { Frog, type Surface } from "./frog";
 import { Pond, type PoolShape } from "./pond";
 import { DitherPass } from "./dither";
 import "./style.css";
+import "./page";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#scene")!;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
 // A flat, front-on view, like looking into a terrarium. World units are CSS
-// pixels with y up: screen point (x, y) is world (x, -y), so the page's top
-// left corner is the origin.
+// pixels with y up: page point (x, y) is world (x, -y), so the page's top
+// left corner is the origin. The scene fills the hero, the first screen of
+// the page, and scrolls away with it.
 const scene = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(0, 1, 0, -1, -2000, 2000);
 camera.position.z = 1000;
@@ -38,7 +40,12 @@ const frog = new Frog({
 
 // The text the frog must never overlap (screen rects, in CSS px).
 let textBoxes: DOMRect[] = [];
-const textEls = [...document.querySelectorAll<HTMLElement>("h1, .tagline, nav")];
+const textEls = [...document.querySelectorAll<HTMLElement>("#hero h1, #hero .tagline, #hero nav")];
+/** An element's box in page coordinates, so scrolling doesn't move it. */
+function pageRect(el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  return new DOMRect(r.left + window.scrollX, r.top + window.scrollY, r.width, r.height);
+}
 /** A circle around world point `c` against a screen rect. */
 function circleHitsBox(c: THREE.Vector3, r: number, b: DOMRect) {
   const x = c.x;
@@ -52,11 +59,12 @@ const frogReady = frog.load();
 // For poking at its behavior from the console while developing.
 if (import.meta.env.DEV) Object.assign(window, { frog });
 
-const nameEl = document.querySelector<HTMLElement>("h1")!;
+const hero = document.querySelector<HTMLElement>("#hero")!;
+const nameEl = hero.querySelector<HTMLElement>("h1")!;
 
 /** A ledge along the top of an element, e.g. the frog sitting on your name. */
 function topOf(id: string, el: HTMLElement): Surface {
-  const r = el.getBoundingClientRect();
+  const r = pageRect(el);
   return { id, a: toWorld(r.left, r.top), b: toWorld(r.right, r.top), normal: UP };
 }
 
@@ -77,7 +85,7 @@ function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape
   ];
 
   const pondBottom = pool.cy + pool.ry;
-  const nameTop = nameEl.getBoundingClientRect().top;
+  const nameTop = pageRect(nameEl).top;
   const gap = nameTop - pondBottom;
   if (gap > frogLength * 1.2) {
     const width = Math.max(frogLength * 2, w * 0.16);
@@ -97,7 +105,7 @@ function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape
     // No room above the name (short screens): put the ledges level with it,
     // one each side, so the frog can hop off and down past the text rather
     // than being stuck on the name.
-    const name = nameEl.getBoundingClientRect();
+    const name = pageRect(nameEl);
     const width = frogLength * 2;
     const off = frogLength * 1.2;
     const left = Math.max(w * 0.03, name.left - off - width);
@@ -110,8 +118,11 @@ function buildSurfaces(w: number, h: number, frogLength: number, pool: PoolShape
   return out;
 }
 
+let laidOut = { w: 0, h: 0 };
 function layout() {
   const { innerWidth: w, innerHeight: h } = window;
+  laidOut = { w, h };
+  hero.style.height = `${h}px`;
   renderer.setSize(w, h, false);
   camera.left = 0;
   camera.right = w;
@@ -128,11 +139,17 @@ function layout() {
   const pool: PoolShape = { cx: w / 2, cy: h * 0.42, rx, ry: rx * 0.2 };
   pond.setPool(pool);
 
-  textBoxes = textEls.map((el) => el.getBoundingClientRect());
+  textBoxes = textEls.map(pageRect);
   surfaces = buildSurfaces(w, h, frogLength, pool);
   frog.refresh();
 }
-window.addEventListener("resize", layout);
+window.addEventListener("resize", () => {
+  // Phone browsers resize the viewport as their address bar slides in and out
+  // while scrolling. Relaying out then would jolt the hero and the page under
+  // it, so only a width change or a big height change counts.
+  const { innerWidth: w, innerHeight: h } = window;
+  if (w !== laidOut.w || Math.abs(h - laidOut.h) > 150) layout();
+});
 layout();
 // Text positions shift once the web font arrives.
 document.fonts.ready.then(layout);
@@ -152,7 +169,12 @@ frogReady.then(() => {
     pond.update(dt);
     dither.render(scene, camera);
   };
-  renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
+  const loop = () => step(Math.min(clock.getDelta(), 0.1));
+  // Only animate while the hero is on screen; scrolled past it, the frog sleeps.
+  new IntersectionObserver(([entry]) => {
+    clock.getDelta(); // don't count the time spent off screen
+    renderer.setAnimationLoop(entry.isIntersecting ? loop : null);
+  }).observe(hero);
   // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
   if (import.meta.env.DEV) Object.assign(window, { step });
 });
@@ -160,7 +182,7 @@ frogReady.then(() => {
 // A clicked link opens in a new tab but keeps focus here, so coming back
 // (e.g. closing that tab with a shortcut) would show it highlighted.
 // Let go of focus after mouse/touch clicks; keyboard focus still shows.
-for (const link of document.querySelectorAll<HTMLElement>("nav a, nav button")) {
+for (const link of document.querySelectorAll<HTMLElement>("#hero nav a, #hero nav button")) {
   link.addEventListener("click", (e) => {
     if (e.detail > 0) link.blur(); // detail is 0 for keyboard-triggered clicks
   });
