@@ -10,14 +10,14 @@ const FADE = 0.15;
 // settling down to sleep.
 const SETTLE_AWAKE_SPEED = 1.3;
 const UNFOLD_SPEED = 3.4; // quick: the arms come out as part of setting off, not before it
-const CRAWL_ANIM_SPEED = 2.2; // playback rate of the Crawling clip; sets crawl speed
+const CRAWL_ANIM_SPEED = 2.35; // playback rate of the Crawling clip; sets crawl speed
 // Never play the crawl faster than this overall (gait, wobble and page pace
 // all multiply in), bursts aside: much faster and the legs flicker.
-const CRAWL_MAX_SPEED = 3.0;
+const CRAWL_MAX_SPEED = 3.2;
 // How far the crawl carries the frog, as a multiple of what its planted feet push.
 // The in-clip foot push, measured in the frog's own frame, is 1.4-2x what the screen-projected
 // measurement reports, so the feet skated. Scale travel up to match the real push.
-const CRAWL_TRAVEL = 1.5;
+const CRAWL_TRAVEL = 1.75;
 const WALL_CLIMB_TRAVEL = 2.0;
 // Between bursts the frog tucks its legs in (Settle to rest) and unfolds again (Wake and move).
 const BURST_TUCK_SPEED = 1.6;
@@ -32,6 +32,11 @@ const LOOK_ANIM_SPEED = 1.3; // Looking around is a little slow as exported
 const TURN_ANIM_SPEED = 1.5; // Turn around (8.5s as exported) is slow; much faster and its quick steps flick
 // The Turn 90 family (79 and 145 frames) is leisurely as exported; a quarter turn should take about a second.
 const QUARTER_ANIM_SPEED = 2.6;
+// At those speeds the turns' quickest steps flick a foot across in a frame or
+// two. Through those stretches only, slow the turn so no limb moves faster
+// than this (frog lengths per second), but never below the share TURN_MIN_PACE.
+const TURN_LIMB_MAX = 4.5;
+const TURN_MIN_PACE = 0.35;
 // Jumping plays at different speeds per phase: a quick crouch, an airborne
 // part so fast the frog nearly teleports, then a brisk landing.
 const JUMP_CROUCH_SPEED = 2;
@@ -81,6 +86,7 @@ const LEAP_STRETCH = 1.6;
 // Bone names (Three strips the dots Blender uses, e.g. hind.ankle.L).
 const FEET = ["frontlowerL", "frontlowerR", "hindankleL", "hindankleR"];
 const SAMPLES = 64;
+const LIMB_STEP = 1 / 48; // clip seconds between limb speed samples (clips are 24 fps)
 // Keyframe pops: a key-to-key step this many times a bone's usual step gets
 // spread over this many keys either side.
 const POP_RATIO = 3;
@@ -223,6 +229,175 @@ function flightEase(x: number, v0: number, v1: number) {
   return ramp(r, v0) + cruise * (x - r);
 }
 
+// The crawl lays each whole forearm flat on the ground with the hand, like a
+// sphinx. Lift the elbows this share of the way to straight up (scaled by the
+// crawl's weight), so the forearm angles down to the planted hand.
+export const ELBOW_LIFT = 0.35;
+// Of the two front legs, whichever reaches less far forward is pulled back
+// toward its shoulder by this share of its reach (the crawl's "in" arm sat too
+// far out). It fades in over ARM_TUCK_SPAN (shares of arm length) of difference.
+export const ARM_TUCK = 0.3;
+const ARM_TUCK_SPAN = 0.1;
+export type Arm = { upper: THREE.Object3D; lower: THREE.Object3D; hand: THREE.Object3D };
+const _s = new THREE.Vector3(), _e = new THREE.Vector3(), _h = new THREE.Vector3();
+const _n = new THREE.Vector3(), _u = new THREE.Vector3(), _t = new THREE.Vector3();
+const _q = new THREE.Quaternion(), _hand = new THREE.Quaternion(), _p = new THREE.Quaternion();
+
+/** Finds the front legs' bones (shoulder, elbow, hand) in a model. */
+export function armsOf(model: THREE.Object3D): Arm[] {
+  return ["L", "R"].flatMap((side) => {
+    const [upper, lower, hand] = ["frontupper", "frontlower", "fronthand"].map((n) => model.getObjectByName(n + side));
+    return upper && lower && hand ? [{ upper, lower, hand }] : [];
+  });
+}
+
+/**
+ * The crawl's arm fixes: tucks the "in" arm (see ARM_TUCK, scaled by `tuck`),
+ * then raises each elbow by `lift` (0-1) of the way toward `up` (world space).
+ * It swings the arm round the line from shoulder to hand, so the hand stays
+ * exactly where it is (planted feet don't skate) and keeps its angle.
+ * Call after the mixer has posed the frog and its world matrices are current.
+ * Call the returned undo before the mixer's next update: the mixer only
+ * rewrites a bone whose animated value has changed, so a lift left in place
+ * would stack up frame after frame wherever the clip holds still (spinning
+ * hands).
+ */
+export function poseArms(arms: Arm[], up: THREE.Vector3, forward: THREE.Vector3, lift: number, tuck: number): () => void {
+  const saved = arms.flatMap(({ upper, lower, hand }) => [upper, lower, hand].map((b) => [b, b.quaternion.clone()] as const));
+  const undo = () => saved.forEach(([b, q]) => b.quaternion.copy(q));
+  if (tuck > 0 && arms.length === 2) {
+    const fwd = forward.clone().projectOnPlane(up).normalize();
+    const reach = arms.map(({ upper, hand }) => hand.getWorldPosition(new THREE.Vector3()).sub(upper.getWorldPosition(new THREE.Vector3())).dot(fwd));
+    const span = arms[0].upper.getWorldPosition(new THREE.Vector3()).distanceTo(arms[0].lower.getWorldPosition(new THREE.Vector3())) * 2;
+    arms.forEach((arm, i) => {
+      const w = THREE.MathUtils.smoothstep((reach[1 - i] - reach[i]) / (span * ARM_TUCK_SPAN), 0, 1);
+      if (w <= 0 || reach[i] <= 0) return;
+      const hand = arm.hand.getWorldQuaternion(new THREE.Quaternion());
+      reachFor(arm, arm.hand.getWorldPosition(new THREE.Vector3()).addScaledVector(fwd, -reach[i] * ARM_TUCK * tuck * w));
+      arm.hand.quaternion.copy(arm.hand.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(hand));
+      arm.hand.updateMatrixWorld(true);
+    });
+  }
+  if (lift <= 0) return undo;
+  for (const { upper, lower, hand } of arms) {
+    upper.getWorldPosition(_s);
+    lower.getWorldPosition(_e);
+    hand.getWorldPosition(_h);
+    _n.subVectors(_h, _s).normalize();
+    // Where the elbow points, and straight up, both square to that line.
+    _u.subVectors(_e, _s).projectOnPlane(_n);
+    _t.copy(up).projectOnPlane(_n);
+    if (_u.lengthSq() < 1e-10 || _t.lengthSq() < 1e-10) continue;
+    const angle = Math.atan2(_n.dot(_u.clone().cross(_t)), _u.dot(_t));
+    hand.getWorldQuaternion(_hand);
+    _q.setFromAxisAngle(_n, angle * lift).multiply(upper.getWorldQuaternion(new THREE.Quaternion()));
+    upper.quaternion.copy(upper.parent!.getWorldQuaternion(_p).invert().multiply(_q));
+    upper.updateMatrixWorld(true);
+    hand.quaternion.copy(hand.parent!.getWorldQuaternion(_p).invert().multiply(_hand));
+    hand.updateMatrixWorld(true);
+  }
+  return undo;
+}
+
+/**
+ * Puts an arm's hand on `target` (world space) the short way: the elbow bends
+ * to span the distance, then the shoulder swings round. The hand keeps its
+ * own rotation relative to the forearm.
+ */
+export function reachFor({ upper, lower, hand }: Arm, target: THREE.Vector3) {
+  const S = upper.getWorldPosition(new THREE.Vector3());
+  const E = lower.getWorldPosition(new THREE.Vector3());
+  const H = hand.getWorldPosition(new THREE.Vector3());
+  const la = S.distanceTo(E);
+  const lb = E.distanceTo(H);
+  const want = THREE.MathUtils.clamp(S.distanceTo(target), Math.abs(la - lb) + 1e-4, la + lb - 1e-4);
+  const now = Math.acos(THREE.MathUtils.clamp(S.clone().sub(E).normalize().dot(H.clone().sub(E).normalize()), -1, 1));
+  const need = Math.acos(THREE.MathUtils.clamp((la * la + lb * lb - want * want) / (2 * la * lb), -1, 1));
+  const axis = S.clone().sub(E).cross(H.clone().sub(E));
+  if (axis.lengthSq() > 1e-12) {
+    const turn = new THREE.Quaternion().setFromAxisAngle(axis.normalize(), need - now);
+    const world = lower.getWorldQuaternion(new THREE.Quaternion());
+    lower.quaternion.copy(lower.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(turn.multiply(world)));
+    lower.updateMatrixWorld(true);
+  }
+  hand.getWorldPosition(H);
+  const swing = new THREE.Quaternion().setFromUnitVectors(H.sub(S).normalize(), target.clone().sub(S).normalize());
+  const world = upper.getWorldQuaternion(new THREE.Quaternion());
+  upper.quaternion.copy(upper.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(swing.multiply(world)));
+  upper.updateMatrixWorld(true);
+}
+
+// The turn clips swing a front leg right round in a full circle (and back to
+// where it started) for what should be a small step. A step between keys
+// bigger than this (degrees, upper arm direction) marks one of those loops.
+const LOOP_STEP = 25;
+// The clean step that replaces a loop lifts the hand this share of the arm's length.
+const LOOP_LIFT = 0.15;
+
+/**
+ * Rebuilds the front legs through any windmill loops in `clip` (see
+ * LOOP_STEP) as a plain step: the hand lifts from where it was planted
+ * before the loop and sets down where it's planted after, the shoulder and
+ * elbow easing between their poses either side and then bending the short
+ * way to follow it.
+ */
+export function unwindArms(model: THREE.Object3D, clip: THREE.AnimationClip) {
+  const mixer = new THREE.AnimationMixer(model);
+  const action = mixer.clipAction(clip).play();
+  const pose = (t: number) => {
+    action.time = t;
+    mixer.update(0);
+    model.updateMatrixWorld(true);
+  };
+  for (const { upper, lower, hand } of armsOf(model)) {
+    const tu = clip.tracks.find((t) => t.name === `${upper.name}.quaternion`);
+    const tl = clip.tracks.find((t) => t.name === `${lower.name}.quaternion`);
+    if (!tu || !tl || tl.times.length !== tu.times.length) continue;
+    const times = tu.times;
+    const n = times.length;
+    // Upper arm direction (in its parent's frame) at each key.
+    const dir = (i: number) => new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion().fromArray(tu.values, i * 4));
+    const big = Array.from({ length: n - 1 }, (_, i) => dir(i).angleTo(dir(i + 1)) * THREE.MathUtils.RAD2DEG > LOOP_STEP);
+    // Loops: runs of big steps (merging runs a key or two apart), from the
+    // calm key before to the calm key after.
+    const loops: [number, number][] = [];
+    for (let i = 0; i < n - 1; i++) {
+      if (!big[i]) continue;
+      const last = loops[loops.length - 1];
+      if (last && i - last[1] <= 2) last[1] = i + 1;
+      else loops.push([i, i + 1]);
+    }
+    for (const [a, b] of loops) {
+      if (b - a < 2) continue;
+      // The step: a low arc from the hand's spot before the loop to its spot after.
+      pose(times[a]);
+      const from = hand.getWorldPosition(new THREE.Vector3());
+      const arm = upper.getWorldPosition(new THREE.Vector3()).distanceTo(lower.getWorldPosition(new THREE.Vector3())) * 2;
+      pose(times[b]);
+      const to = hand.getWorldPosition(new THREE.Vector3());
+      const targets: THREE.Vector3[] = [];
+      for (let i = a + 1; i < b; i++) {
+        const s = (times[i] - times[a]) / (times[b] - times[a]);
+        targets.push(from.clone().lerp(to, s).add(new THREE.Vector3(0, arm * LOOP_LIFT * Math.sin(Math.PI * s), 0)));
+      }
+      const q = (t: THREE.KeyframeTrack, i: number) => new THREE.Quaternion().fromArray(t.values, i * 4);
+      for (let i = a + 1; i < b; i++) {
+        const s = (times[i] - times[a]) / (times[b] - times[a]);
+        // The rest of the body as the clip has it, the arm eased between the calm keys.
+        pose(times[i]);
+        upper.quaternion.copy(q(tu, a).slerp(q(tu, b), s));
+        lower.quaternion.copy(q(tl, a).slerp(q(tl, b), s));
+        upper.updateMatrixWorld(true);
+        reachFor({ upper, lower, hand }, targets[i - a - 1]);
+        upper.quaternion.toArray(tu.values, i * 4);
+        lower.quaternion.toArray(tl.values, i * 4);
+      }
+    }
+  }
+  mixer.stopAllAction();
+  mixer.uncacheRoot(model);
+}
+
 export class Frog {
   readonly root = new THREE.Group();
   private mixer?: THREE.AnimationMixer;
@@ -278,6 +453,10 @@ export class Frog {
   private turnAngle = Math.PI;
   private turnPivot = new THREE.Vector3();
   private rootBone?: THREE.Object3D; // the skeleton's root, which some clips move
+  private arms: Arm[] = []; // front legs, for lifting the elbows in the crawl
+  private unlift?: () => void; // puts the arms back as the mixer left them
+  private headBone?: THREE.Object3D; // for which way is forward in the arm fixes
+  private bodyBone?: THREE.Object3D;
   // Copies of clips that move the whole body, minus that movement, to blend
   // out of once the movement has been handed over to the frog itself.
   private stillCopies = new Map<ClipKey, THREE.AnimationAction>();
@@ -313,6 +492,11 @@ export class Frog {
   // Spread through a turn: from the starting orientation, the extra rotation
   // that leaves it facing properly at the end, and the turn's length (s).
   private turnFix?: { start: THREE.Quaternion; delta: THREE.Quaternion; total: number };
+  // Turns: fastest limb speed through each clip (frog lengths per clip
+  // second, every LIMB_STEP), the turn's playback rate, and this frame's pace.
+  private limbSpeed = new Map<ClipKey, number[]>();
+  private turnRate = 1;
+  private turnPace = 1;
   // Wall turn to look down: its swivel (about the wall normal) and pivot.
   private peekAngle = 0;
   private peekPivot = new THREE.Vector3();
@@ -411,7 +595,19 @@ export class Frog {
 
   update(dt: number) {
     if (!this.mixer || !this.surface) return;
+    this.unlift?.();
+    this.unlift = undefined;
     this.mixer.update(dt);
+    // Crawling and climbing (the same gait, laid on the wall): tuck the "in"
+    // arm closer and stand the forearms up off the surface. Right after the
+    // mixer, while the gait's weight matches the pose it just made.
+    const gait = this.actions.get(this.onWall() ? "wallClimb" : "crawl");
+    const weight = gait?.isRunning() ? gait.getEffectiveWeight() : 0;
+    if (weight > 0 && this.headBone && this.bodyBone) {
+      this.root.updateMatrixWorld(true);
+      const forward = this.headBone.getWorldPosition(new THREE.Vector3()).sub(this.bodyBone.getWorldPosition(new THREE.Vector3()));
+      this.unlift = poseArms(this.arms, UP.clone().applyQuaternion(this.root.quaternion), forward, weight * ELBOW_LIFT, weight);
+    }
     this.timer -= dt;
     this.clock += dt;
 
@@ -433,6 +629,7 @@ export class Frog {
         this.crawl(dt);
         break;
       case "turning":
+        this.paceTurn(dt);
         if (this.turnFix) {
           const { start, delta, total } = this.turnFix;
           const p = THREE.MathUtils.clamp(1 - this.timer / total, 0, 1);
@@ -493,6 +690,7 @@ export class Frog {
     if (this.state !== "turning" && !(this.state === "sequence" && this.peeking)) {
       this.root.quaternion.slerp(this.facing(), 1 - Math.exp(-dt * 8));
     }
+
   }
 
   private enter(state: State, clip?: ClipKey) {
@@ -824,6 +1022,8 @@ export class Frog {
     if (!PREFER_FULL_TURN && this.actions.has("turn90") && this.actions.has("turn90More")) return this.quarterTurn("quarter");
     this.state = "turning";
     const full = this.play("turn", TURN_ANIM_SPEED);
+    this.turnRate = TURN_ANIM_SPEED;
+    this.turnPace = 1;
     // Turning in order to move off: stop once it's turned (before the clip's
     // own tuck) and go straight into the crawl. Otherwise let it tuck in.
     this.turnThenMove = this.turnMoveEnd > 0;
@@ -962,6 +1162,8 @@ export class Frog {
     // Branches start exactly where Turn 90 ends: cut straight over.
     const fade = stage === "more" || stage === "back" || stage === "settle90" ? 0 : FADE;
     const full = this.play(key, QUARTER_ANIM_SPEED, fade);
+    this.turnRate = QUARTER_ANIM_SPEED;
+    this.turnPace = 1;
     const moving = !!this.afterTurn;
     const stopAt = stage === "more" && moving && this.moreMoveEnd ? this.moreMoveEnd : full;
     this.timer = stopAt / QUARTER_ANIM_SPEED;
@@ -1023,6 +1225,52 @@ export class Frog {
     else this.enter("looking");
   }
 
+  /**
+   * Slows the current turn clip through its quick steps (see TURN_LIMB_MAX).
+   * The turn's timer counts clip time at the normal rate, so give back the
+   * share of this frame the clip didn't play.
+   */
+  private paceTurn(dt: number) {
+    this.timer += dt * (1 - this.turnPace);
+    const action = this.current;
+    const key = [...this.actions].find(([, a]) => a === action)?.[0];
+    const speeds = key && this.limbSpeed.get(key);
+    if (!action || !speeds) return void (this.turnPace = 1);
+    const v = speeds[Math.min(speeds.length - 1, Math.round(action.time / LIMB_STEP))] * this.turnRate;
+    this.turnPace = THREE.MathUtils.clamp(TURN_LIMB_MAX / Math.max(v, 1e-6), TURN_MIN_PACE, 1);
+    action.timeScale = this.turnRate * this.turnPace;
+  }
+
+  /**
+   * How fast the quickest limb moves through a clip, in frog lengths per clip
+   * second, every LIMB_STEP. Each value is the fastest within a short window
+   * around it, so the slow-down starts a little before a quick step.
+   */
+  private measureLimbSpeed(model: THREE.Object3D, key: ClipKey) {
+    const action = this.actions.get(key);
+    if (!action) return;
+    const limbs: THREE.Object3D[] = [];
+    model.traverse((o) => (o as THREE.Bone).isBone && o.name !== "root" && limbs.push(o));
+    const duration = action.getClip().duration;
+    action.reset().setEffectiveWeight(1).play();
+    const raw: number[] = [];
+    let prev: THREE.Vector3[] | undefined;
+    for (let t = 0; t <= duration; t += LIMB_STEP) {
+      action.time = Math.min(t, duration - 1e-4);
+      this.mixer!.update(0);
+      this.root.updateMatrixWorld(true);
+      const now = limbs.map((b) => this.local(b));
+      raw.push(prev ? Math.max(...now.map((p, i) => p.distanceTo(prev![i]))) / LIMB_STEP : 0);
+      prev = now;
+    }
+    action.stop();
+    const reach = Math.round(0.08 / LIMB_STEP);
+    this.limbSpeed.set(
+      key,
+      raw.map((_, i) => Math.max(...raw.slice(Math.max(0, i - reach), i + reach + 1))),
+    );
+  }
+
   private finishTurn() {
     // Carry over wherever the turn left the body (it rotates and steps it
     // along), then either crawl straight off or sit tucked, as the clip ends.
@@ -1061,6 +1309,8 @@ export class Frog {
     still.reset().setEffectiveWeight(1).setEffectiveTimeScale(0).play();
     still.time = t;
     this.current = still;
+    this.unlift?.();
+    this.unlift = undefined;
     this.mixer.update(0);
     this.root.updateMatrixWorld(true);
     const rest = toFrog.clone().multiply(bone.matrixWorld);
@@ -2147,10 +2397,24 @@ export class Frog {
     if (climbForSmoothing) this.smoothPops(climbForSmoothing);
     // (Turn around has quick back-foot flicks too, but smoothing those shifts
     // when its feet plant and makes them skate, which looks worse: leave it.)
+    // The turns windmill a front leg round in full circles; make those plain steps.
+    for (const key of ["turn", "turn90", "turn90More", "turn90Back", "turn90Settle"] as const) {
+      const clip = clips.find((c) => c.name === CLIPS[key]);
+      if (clip) unwindArms(model, clip);
+    }
+    // The 90-degree turns also snap a back foot across in a single key or two
+    // (up to half a frog length), which looks like a spasm at turning speed.
+    for (const key of ["turn90", "turn90More", "turn90Back", "turn90Settle"] as const) {
+      const clip = clips.find((c) => c.name === CLIPS[key]);
+      if (clip) this.smoothPops(clip, false);
+    }
 
     const jumpClip = clips.find((c) => c.name === CLIPS.jump);
     if (jumpClip) this.takeLeapOut(jumpClip);
     this.rootBone = model.getObjectByName("root");
+    this.arms = armsOf(model);
+    this.headBone = model.getObjectByName("head");
+    this.bodyBone = model.getObjectByName("body");
 
     this.mixer = new THREE.AnimationMixer(model);
     for (const [key, name] of Object.entries(CLIPS) as [ClipKey, string][]) {
@@ -2198,6 +2462,7 @@ export class Frog {
     // The 90-degree family: how far each part turns, when Continue turn 90
     // is done turning, and the crawl phases it can move off into.
     for (const key of ["turn90", "turn90More", "turn90Back"] as const) this.yaw.set(key, this.measureYaw(model, key));
+    for (const key of ["turn", "turn90", "turn90More", "turn90Back", "turn90Settle"] as const) this.measureLimbSpeed(model, key);
     const moreClip = this.actions.get("turn90More")?.getClip();
     if (moreClip) this.moreMoveEnd = this.rootStillTime(moreClip);
     if (this.stillCopies.has("turn90More")) this.crawlAfterMore = this.closestCrawlPhase(model, "turn90More", this.moreMoveEnd || moreClip!.duration);

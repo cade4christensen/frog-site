@@ -2,6 +2,7 @@
 // Blender scene (preview/turn.glb) on its own. Not part of the site build.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { armsOf, poseArms, unwindArms, ELBOW_LIFT } from "../src/frog";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#c")!;
 const ui = document.querySelector<HTMLDivElement>("#ui")!;
@@ -37,7 +38,7 @@ function resize() {
 addEventListener("resize", resize);
 resize();
 
-const gltf = await new GLTFLoader().loadAsync("/models/frog.glb");
+const gltf = await new GLTFLoader().loadAsync(new URLSearchParams(location.search).get("model") ?? "/models/frog.glb");
 const model = gltf.scene;
 model.traverse((o) => {
   if (o.name.startsWith("Original scan") || (o as THREE.Light).isLight || (o as THREE.Camera).isCamera) o.visible = false;
@@ -53,6 +54,8 @@ place();
 
 const mixer = new THREE.AnimationMixer(model);
 const clips = gltf.animations.filter((c) => !/breathing/i.test(c.name));
+// The site's fix for the turns' windmilling front legs (add ?raw to see them as exported).
+if (!new URLSearchParams(location.search).has("raw")) for (const c of clips) if (/turn/i.test(c.name)) unwindArms(model, c);
 let action: THREE.AnimationAction | null = null;
 let pauseLeft = 0;
 let speed = 1;
@@ -83,9 +86,16 @@ function play(clip: THREE.AnimationClip) {
 for (const clip of clips) button(clip.name, "clip", () => play(clip));
 for (const [label, v] of Object.entries(views)) button(label, "view", () => ((view = v), place()));
 for (const s of [0.5, 1]) button(`${s}x`, "speed", () => (speed = s));
+// The site's crawl fixes: the "in" arm tucked closer, elbows lifted off the ground (see poseArms).
+const arms = armsOf(model);
+let elbows = true;
+let unlift: (() => void) | undefined;
+button("Arm fixes on", "elbows", () => (elbows = true));
+button("Arm fixes off", "elbows", () => (elbows = false));
 buttons.get("clipCrawling")?.click();
 buttons.get("viewSide (like the site)")?.click();
 buttons.get("speed1x")?.click();
+buttons.get("elbowsArm fixes on")?.click();
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
@@ -98,6 +108,24 @@ renderer.setAnimationLoop(() => {
     }
     info.textContent = `${clip.name} · ${action.time.toFixed(2)} / ${clip.duration.toFixed(2)}s`;
   }
+  unlift?.();
+  unlift = undefined;
   mixer.update(dt);
+  if (elbows && action?.getClip().name === "Crawling") {
+    model.updateMatrixWorld(true);
+    const forward = model.getObjectByName("head")!.getWorldPosition(new THREE.Vector3()).sub(model.getObjectByName("body")!.getWorldPosition(new THREE.Vector3()));
+    unlift = poseArms(arms, new THREE.Vector3(0, 1, 0), forward, ELBOW_LIFT, 1);
+  }
   renderer.render(scene, camera);
+});
+
+// For stepping through by hand from the console: show("Turn 90", 1.4).
+Object.assign(window, {
+  show(name: string, t: number) {
+    const clip = clips.find((c) => c.name === name);
+    if (!clip) return;
+    play(clip);
+    action!.time = t;
+    speed = 0;
+  },
 });
