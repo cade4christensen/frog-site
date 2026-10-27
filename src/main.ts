@@ -215,9 +215,11 @@ function landingSpot() {
   return best;
 }
 
-// Click the frog and it heads home: the page scrolls back up to the pond and
-// it leaps onto your name (or off it to a ledge, if it's already there).
-let homing = false;
+// Too distracting? Click the frog and it leaps up off the screen, back home
+// to the pond, and waits there: it only follows you again once you've
+// scrolled back up to it. (Up at the pond already, it just hops onto your
+// name, or off it to a ledge.)
+let stayHome = false;
 function hitsFrog(x: number, y: number) {
   if (!frog.perch) return false;
   const box = new THREE.Box3().setFromObject(frog.root).expandByScalar(frogLength * 0.1);
@@ -230,21 +232,22 @@ window.addEventListener(
     // It's sitting over the page: don't also follow a link under it.
     e.preventDefault();
     e.stopPropagation();
-    homing = true;
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.body.classList.remove("over-frog");
+    goHome();
   },
   true,
 );
-// Scrolling yourself before it got home calls it off.
-for (const type of ["wheel", "touchstart", "keydown"]) window.addEventListener(type, () => (homing = false), { passive: true });
 window.addEventListener("pointermove", (e) => {
-  if (e.pointerType === "mouse") document.body.classList.toggle("over-frog", hitsFrog(e.clientX, e.clientY));
+  if (e.pointerType === "mouse") document.body.classList.toggle("over-frog", !stayHome && hitsFrog(e.clientX, e.clientY));
 });
 function goHome() {
-  homing = false;
-  const home = surfaces.filter((s) => (s.id === "name" || s.id.startsWith("ledge")) && !s.hidden);
-  const name = home.find((s) => s.id === "name");
-  const pick = name && frog.perch?.id !== "name" ? name : home.filter((s) => s.id !== frog.perch?.id)[Math.floor(Math.random() * (home.length - 1))];
+  const name = surfaces.find((s) => s.id === "name")!;
+  if (name.hidden) {
+    stayHome = true;
+    return frog.leapTo(name);
+  }
+  const home = surfaces.filter((s) => (s.id === "name" || s.id.startsWith("ledge")) && !s.hidden && s.id !== frog.perch?.id);
+  const pick = frog.perch?.id !== "name" ? name : home[Math.floor(Math.random() * home.length)];
   if (pick) frog.leapTo(pick);
 }
 
@@ -254,11 +257,12 @@ frogReady.then(() => {
   const clock = new THREE.Clock();
   const step = (dt: number) => {
     syncScroll();
-    // Back at the top after a click (and between leaps): jump up onto the name.
-    if (homing && window.scrollY <= 1 && !frog.airborne) goHome();
+    // Sent home: once you're back up at the pond, it's free to follow again.
+    if (stayHome && !frog.perch?.hidden) stayHome = false;
     // Its perch is scrolling off the screen: it leaps after you.
-    else if (frog.perch?.hidden && !frog.airborne) frog.leapTo(landingSpot());
-    frog.update(dt);
+    if (!stayHome && frog.perch?.hidden && !frog.airborne) frog.leapTo(landingSpot());
+    // Home and out of sight: it waits there, still, until you come back.
+    if (!stayHome || frog.airborne || !frog.perch?.hidden) frog.update(dt);
     pond.update(dt);
     dither.render(scene, camera);
   };
