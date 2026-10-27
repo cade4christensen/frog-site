@@ -215,14 +215,49 @@ function landingSpot() {
   return best;
 }
 
+// Click the frog and it heads home: the page scrolls back up to the pond and
+// it leaps onto your name (or off it to a ledge, if it's already there).
+let homing = false;
+function hitsFrog(x: number, y: number) {
+  if (!frog.perch) return false;
+  const box = new THREE.Box3().setFromObject(frog.root).expandByScalar(frogLength * 0.1);
+  return x >= box.min.x && x <= box.max.x && -y >= box.min.y && -y <= box.max.y;
+}
+window.addEventListener(
+  "click",
+  (e) => {
+    if (!hitsFrog(e.clientX, e.clientY)) return;
+    // It's sitting over the page: don't also follow a link under it.
+    e.preventDefault();
+    e.stopPropagation();
+    homing = true;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+  true,
+);
+// Scrolling yourself before it got home calls it off.
+for (const type of ["wheel", "touchstart", "keydown"]) window.addEventListener(type, () => (homing = false), { passive: true });
+window.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "mouse") document.body.classList.toggle("over-frog", hitsFrog(e.clientX, e.clientY));
+});
+function goHome() {
+  homing = false;
+  const home = surfaces.filter((s) => (s.id === "name" || s.id.startsWith("ledge")) && !s.hidden);
+  const name = home.find((s) => s.id === "name");
+  const pick = name && frog.perch?.id !== "name" ? name : home.filter((s) => s.id !== frog.perch?.id)[Math.floor(Math.random() * (home.length - 1))];
+  if (pick) frog.leapTo(pick);
+}
+
 // Hold the scene back until the frog has loaded, so the pond and the frog
 // appear together rather than the frog popping in afterwards.
 frogReady.then(() => {
   const clock = new THREE.Clock();
   const step = (dt: number) => {
     syncScroll();
+    // Back at the top after a click (and between leaps): jump up onto the name.
+    if (homing && window.scrollY <= 1 && !frog.airborne) goHome();
     // Its perch is scrolling off the screen: it leaps after you.
-    if (frog.perch?.hidden && !frog.airborne) frog.leapTo(landingSpot());
+    else if (frog.perch?.hidden && !frog.airborne) frog.leapTo(landingSpot());
     frog.update(dt);
     pond.update(dt);
     dither.render(scene, camera);

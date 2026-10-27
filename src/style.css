@@ -112,6 +112,12 @@ body {
   }
 }
 
+/* Over the frog: it can be clicked (the scene itself lets clicks through). */
+body.over-frog,
+body.over-frog * {
+  cursor: pointer !important;
+}
+
 /* ── Below the frog ───────────────────────────────────────────── */
 
 .scroll-cue {
