@@ -2,7 +2,7 @@
 // Blender scene (preview/turn.glb) on its own. Not part of the site build.
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { armsOf, poseArms, unwindArms, ELBOW_LIFT } from "../src/frog";
+import { armsOf, poseArms, unwindLimbs, ELBOW_LIFT } from "../src/frog";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#c")!;
 const ui = document.querySelector<HTMLDivElement>("#ui")!;
@@ -54,8 +54,8 @@ place();
 
 const mixer = new THREE.AnimationMixer(model);
 const clips = gltf.animations.filter((c) => !/breathing/i.test(c.name));
-// The site's fix for the turns' windmilling front legs (add ?raw to see them as exported).
-if (!new URLSearchParams(location.search).has("raw")) for (const c of clips) if (/turn/i.test(c.name)) unwindArms(model, c);
+// The site's fix for the turns' windmilling legs (add ?raw to see them as exported).
+if (!new URLSearchParams(location.search).has("raw")) for (const c of clips) if (/turn/i.test(c.name)) unwindLimbs(model, c);
 let action: THREE.AnimationAction | null = null;
 let pauseLeft = 0;
 let speed = 1;

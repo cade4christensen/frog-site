@@ -327,21 +327,68 @@ export function reachFor({ upper, lower, hand }: Arm, target: THREE.Vector3) {
   upper.updateMatrixWorld(true);
 }
 
-// The turn clips swing a front leg right round in a full circle (and back to
-// where it started) for what should be a small step. A step between keys
-// bigger than this (degrees, upper arm direction) marks one of those loops.
+/**
+ * Turns an arm round the line from its shoulder to its hand, which leaves the
+ * hand where it is, so the elbow points as near as it can to `bend` (world
+ * space, from the shoulder).
+ */
+function bendToward({ upper, lower, hand }: Arm, bend: THREE.Vector3) {
+  const S = upper.getWorldPosition(new THREE.Vector3());
+  const axis = hand.getWorldPosition(new THREE.Vector3()).sub(S).normalize();
+  const now = lower.getWorldPosition(new THREE.Vector3()).sub(S).projectOnPlane(axis);
+  const want = bend.clone().projectOnPlane(axis);
+  if (now.lengthSq() < 1e-10 || want.lengthSq() < 1e-10) return;
+  const angle = Math.atan2(axis.dot(now.clone().cross(want)), now.dot(want));
+  const world = upper.getWorldQuaternion(new THREE.Quaternion());
+  const turn = new THREE.Quaternion().setFromAxisAngle(axis, angle).multiply(world);
+  upper.quaternion.copy(upper.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(turn));
+  upper.updateMatrixWorld(true);
+}
+
+// The turn clips swing legs right round in full circles (and back to where
+// they started) for what should be small steps: the upper arm windmills, and
+// the back legs flail at the knee and foot. A swing between keys bigger than
+// this (degrees, any segment of the leg) marks one of those loops.
 const LOOP_STEP = 25;
-// The clean step that replaces a loop lifts the hand this share of the arm's length.
+// A loop becomes a clean step lifting the hand or foot this share of the leg's
+// length, taking at least LOOP_MIN_TIME (clip seconds) so it isn't a flick.
 const LOOP_LIFT = 0.15;
+const LOOP_MIN_TIME = 0.25;
+
+type Limb = {
+  arm: Arm; // the two-bone chain and its end (hand, or ankle for a back leg)
+  segments: [THREE.Object3D, THREE.Object3D][]; // checked for loops
+  eased: THREE.Object3D[]; // eased between the calm keys either side of a loop
+};
+
+function limbsOf(model: THREE.Object3D): Limb[] {
+  const legs = ["L", "R"].flatMap((side) => {
+    const [upper, lower, ankle, foot] = ["hindupper", "hindlower", "hindankle", "hindfoot"].map((n) => model.getObjectByName(n + side));
+    if (!upper || !lower || !ankle) return [];
+    return [
+      {
+        arm: { upper, lower, hand: ankle },
+        segments: [[upper, lower], [lower, ankle], ...(foot ? [[ankle, foot]] : [])] as [THREE.Object3D, THREE.Object3D][],
+        eased: [upper, lower, ankle, ...(foot ? [foot] : [])],
+      },
+    ];
+  });
+  const arms = armsOf(model).map((arm) => ({
+    arm,
+    segments: [[arm.upper, arm.lower]] as [THREE.Object3D, THREE.Object3D][],
+    eased: [arm.upper, arm.lower],
+  }));
+  return [...arms, ...legs];
+}
 
 /**
- * Rebuilds the front legs through any windmill loops in `clip` (see
- * LOOP_STEP) as a plain step: the hand lifts from where it was planted
- * before the loop and sets down where it's planted after, the shoulder and
- * elbow easing between their poses either side and then bending the short
- * way to follow it.
+ * Rebuilds the legs through any windmill loops in `clip` (see LOOP_STEP) as
+ * plain steps: the hand or ankle lifts from where it was before the loop and
+ * sets down where it is after (the clip's own path through a loop zigzags
+ * too), the leg's rotations easing between the poses either side, then the
+ * elbow or knee bends and the shoulder or hip turns the short way to follow.
  */
-export function unwindArms(model: THREE.Object3D, clip: THREE.AnimationClip) {
+export function unwindLimbs(model: THREE.Object3D, clip: THREE.AnimationClip) {
   const mixer = new THREE.AnimationMixer(model);
   const action = mixer.clipAction(clip).play();
   const pose = (t: number) => {
@@ -349,48 +396,77 @@ export function unwindArms(model: THREE.Object3D, clip: THREE.AnimationClip) {
     mixer.update(0);
     model.updateMatrixWorld(true);
   };
-  for (const { upper, lower, hand } of armsOf(model)) {
-    const tu = clip.tracks.find((t) => t.name === `${upper.name}.quaternion`);
-    const tl = clip.tracks.find((t) => t.name === `${lower.name}.quaternion`);
-    if (!tu || !tl || tl.times.length !== tu.times.length) continue;
-    const times = tu.times;
+  const at = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3());
+  for (const { arm, segments, eased } of limbsOf(model)) {
+    const tracks = eased.map((b) => clip.tracks.find((t) => t.name === `${b.name}.quaternion`));
+    const times = tracks[0]?.times;
+    if (!times || tracks.slice(0, 2).some((t) => !t || t.times.length !== times.length)) continue;
+    // Only ease the bones keyed in step with the rest (one held still has no keys to fix).
+    const keyed = eased.map((b, i) => [b, tracks[i]] as const).filter(([, t]) => t && t.times.length === times.length) as [
+      THREE.Object3D,
+      THREE.KeyframeTrack,
+    ][];
     const n = times.length;
-    // Upper arm direction (in its parent's frame) at each key.
-    const dir = (i: number) => new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion().fromArray(tu.values, i * 4));
-    const big = Array.from({ length: n - 1 }, (_, i) => dir(i).angleTo(dir(i + 1)) * THREE.MathUtils.RAD2DEG > LOOP_STEP);
-    // Loops: runs of big steps (merging runs a key or two apart), from the
-    // calm key before to the calm key after.
+    // Each segment's direction, and where the end of the chain is, at each key.
+    const dirs: THREE.Vector3[][] = [];
+    const ends: THREE.Vector3[] = [];
+    const endTurns: THREE.Quaternion[] = [];
+    const bends: THREE.Vector3[] = []; // where the elbow or knee is, from the shoulder or hip
+    for (let i = 0; i < n; i++) {
+      pose(times[i]);
+      dirs.push(segments.map(([p, c]) => at(c).sub(at(p)).normalize()));
+      ends.push(at(arm.hand).sub(at(arm.upper))); // from the shoulder or hip
+      endTurns.push(arm.hand.getWorldQuaternion(new THREE.Quaternion()));
+      bends.push(at(arm.lower).sub(at(arm.upper)));
+    }
+    // A keyed end (a back leg's ankle, which sets the foot) also holds its
+    // angle through a loop, or the foot swings round with the re-bent knee.
+    const endTrack = keyed.find(([bone]) => bone === arm.hand)?.[1];
+    const big = Array.from({ length: n - 1 }, (_, i) =>
+      dirs[i].some((d, k) => d.angleTo(dirs[i + 1][k]) * THREE.MathUtils.RAD2DEG > LOOP_STEP),
+    );
+    // Loops: runs of big swings (merging runs a key or two apart), widened to
+    // at least LOOP_MIN_TIME so even a single-key snap becomes an unhurried
+    // step, from the calm key before to the calm key after.
+    const keyTime = times[n - 1] / (n - 1);
+    const pad = Math.max(1, Math.ceil(LOOP_MIN_TIME / keyTime / 2));
     const loops: [number, number][] = [];
     for (let i = 0; i < n - 1; i++) {
       if (!big[i]) continue;
+      const [lo, hi] = [Math.max(0, i - pad), Math.min(n - 1, i + 1 + pad)];
       const last = loops[loops.length - 1];
-      if (last && i - last[1] <= 2) last[1] = i + 1;
-      else loops.push([i, i + 1]);
+      if (last && lo - last[1] <= 1) last[1] = Math.max(last[1], hi);
+      else loops.push([lo, hi]);
     }
+    const q = (t: THREE.KeyframeTrack, i: number) => new THREE.Quaternion().fromArray(t.values, i * 4);
     for (const [a, b] of loops) {
       if (b - a < 2) continue;
-      // The step: a low arc from the hand's spot before the loop to its spot after.
       pose(times[a]);
-      const from = hand.getWorldPosition(new THREE.Vector3());
-      const arm = upper.getWorldPosition(new THREE.Vector3()).distanceTo(lower.getWorldPosition(new THREE.Vector3())) * 2;
-      pose(times[b]);
-      const to = hand.getWorldPosition(new THREE.Vector3());
-      const targets: THREE.Vector3[] = [];
+      const reach = at(arm.upper).distanceTo(at(arm.lower)) * 2;
       for (let i = a + 1; i < b; i++) {
         const s = (times[i] - times[a]) / (times[b] - times[a]);
-        targets.push(from.clone().lerp(to, s).add(new THREE.Vector3(0, arm * LOOP_LIFT * Math.sin(Math.PI * s), 0)));
-      }
-      const q = (t: THREE.KeyframeTrack, i: number) => new THREE.Quaternion().fromArray(t.values, i * 4);
-      for (let i = a + 1; i < b; i++) {
-        const s = (times[i] - times[a]) / (times[b] - times[a]);
-        // The rest of the body as the clip has it, the arm eased between the calm keys.
+        // The rest of the body as the clip has it, the leg eased between the calm keys.
         pose(times[i]);
-        upper.quaternion.copy(q(tu, a).slerp(q(tu, b), s));
-        lower.quaternion.copy(q(tl, a).slerp(q(tl, b), s));
-        upper.updateMatrixWorld(true);
-        reachFor({ upper, lower, hand }, targets[i - a - 1]);
-        upper.quaternion.toArray(tu.values, i * 4);
-        lower.quaternion.toArray(tl.values, i * 4);
+        // The step swings round the shoulder or hip (a straight line between
+        // the spots can pass right under it and fold the leg up), and lifts.
+        const target = new THREE.Vector3()
+          .copy(ends[a])
+          .normalize()
+          .applyQuaternion(new THREE.Quaternion().slerp(new THREE.Quaternion().setFromUnitVectors(ends[a].clone().normalize(), ends[b].clone().normalize()), s))
+          .multiplyScalar(THREE.MathUtils.lerp(ends[a].length(), ends[b].length(), s))
+          .add(at(arm.upper))
+          .add(new THREE.Vector3(0, reach * LOOP_LIFT * Math.sin(Math.PI * s), 0));
+        for (const [bone, track] of keyed) bone.quaternion.copy(q(track, a).slerp(q(track, b), s));
+        arm.upper.updateMatrixWorld(true);
+        reachFor(arm, target);
+        // Point the elbow or knee the way it points either side of the loop
+        // (easing between two far-apart poses can leave a knee sticking up).
+        bendToward(arm, bends[a].clone().lerp(bends[b], s));
+        if (endTrack) {
+          const turn = endTurns[a].clone().slerp(endTurns[b], s);
+          arm.hand.quaternion.copy(arm.hand.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(turn));
+        }
+        for (const [bone, track] of keyed) bone.quaternion.toArray(track.values, i * 4);
       }
     }
   }
@@ -2397,10 +2473,10 @@ export class Frog {
     if (climbForSmoothing) this.smoothPops(climbForSmoothing);
     // (Turn around has quick back-foot flicks too, but smoothing those shifts
     // when its feet plant and makes them skate, which looks worse: leave it.)
-    // The turns windmill a front leg round in full circles; make those plain steps.
+    // The turns windmill their legs round in full circles; make those plain steps.
     for (const key of ["turn", "turn90", "turn90More", "turn90Back", "turn90Settle"] as const) {
       const clip = clips.find((c) => c.name === CLIPS[key]);
-      if (clip) unwindArms(model, clip);
+      if (clip) unwindLimbs(model, clip);
     }
     // The 90-degree turns also snap a back foot across in a single key or two
     // (up to half a frog length), which looks like a spasm at turning speed.
