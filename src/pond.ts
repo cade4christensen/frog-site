@@ -38,10 +38,13 @@ export class Pond {
   private pads: LilyPad[] = [];
 
   constructor() {
+    // Pointer positions are viewport px; the pond lives in page px.
     window.addEventListener("pointerdown", (e) => {
-      if (this.inPool(e.clientX, e.clientY)) this.addRipple(e.clientX, e.clientY, this.pool.rx * 0.9, 1);
+      const x = e.clientX + window.scrollX;
+      const y = e.clientY + window.scrollY;
+      if (this.inPool(x, y)) this.addRipple(x, y, this.pool.rx * 0.9, 1);
     });
-    window.addEventListener("pointermove", (e) => this.trail(e.clientX, e.clientY, e.timeStamp));
+    window.addEventListener("pointermove", (e) => this.trail(e.clientX + window.scrollX, e.clientY + window.scrollY, e.timeStamp));
   }
 
   // Where the pointer last left a wake ripple, so a drag leaves an evenly spaced trail.
@@ -127,6 +130,9 @@ export class Pond {
     ctx.fillRect(0, 0, w, h);
     // Additive so the red and green channels stay independent.
     ctx.globalCompositeOperation = "lighter";
+    // Everything below is in page px: scroll it with the page.
+    ctx.save();
+    ctx.translate(-window.scrollX, -window.scrollY);
 
     // Water and ripples stay inside the pool.
     ctx.save();
@@ -140,6 +146,7 @@ export class Pond {
     this.drawRim();
     this.drawReeds();
     this.drawFireflies(dt);
+    ctx.restore();
   }
 
   /** Ripple at a screen point (CSS px). */

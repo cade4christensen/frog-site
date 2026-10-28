@@ -4,19 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cade Christensen</title>
-    <meta name="description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta name="description" content="Cade Christensen: CS student and software engineering intern. A pixel-rendered 3D frog, then the projects." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://cade.work/" />
     <meta property="og:site_name" content="cade.work" />
     <meta property="og:title" content="Cade Christensen" />
-    <meta property="og:description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta property="og:description" content="Cade Christensen: CS student and software engineering intern. A pixel-rendered 3D frog, then the projects." />
     <meta property="og:image" content="https://cade.work/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A dithered pixel frog above the name Cade Christensen" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cade Christensen" />
-    <meta name="twitter:description" content="Personal site of software engineering intern Cade Christensen, home to a pixel-rendered 3D frog." />
+    <meta name="twitter:description" content="Cade Christensen: CS student and software engineering intern. A pixel-rendered 3D frog, then the projects." />
     <meta name="twitter:image" content="https://cade.work/og.png" />
     <link rel="canonical" href="https://cade.work/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=5" />
@@ -31,16 +31,327 @@
     />
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <main>
-      <h1>Cade Christensen</h1>
-      <p class="tagline">Software Engineering Intern</p>
-      <nav>
-        <a href="https://github.com/cade4christensen" target="_blank" rel="noreferrer">GitHub</a>
-        <a href="https://www.linkedin.com/in/cade-christensen-90ab13266/" target="_blank" rel="noreferrer">LinkedIn</a>
-        <button id="email" type="button" data-email="cadeachristensen@gmail.com">Email</button>
-      </nav>
-    </main>
+    <canvas id="pixels" aria-hidden="true"></canvas>
+    <canvas id="scene" aria-hidden="true"></canvas>
+
+    <header class="topbar">
+      <a class="topbar-logo" href="#top">Cade</a>
+      <ul class="topbar-links">
+        <li><a href="#about">About</a></li>
+        <li><a href="#skills">Skills</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#education">Education</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </header>
+
+    <!-- The frog's screen: one viewport, the pond and the name. -->
+    <section id="landing">
+      <a id="top"></a>
+      <div class="intro">
+        <h1>Cade Christensen</h1>
+        <p class="tagline">Software Engineering Intern</p>
+        <nav>
+          <a href="https://github.com/cade4christensen" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://www.linkedin.com/in/cade-christensen-90ab13266/" target="_blank" rel="noreferrer">LinkedIn</a>
+          <button id="email" type="button" data-email="cadeachristensen@gmail.com">Email</button>
+        </nav>
+      </div>
+      <div class="scroll-hint">scroll</div>
+    </section>
+
+    <!-- ── About ── -->
+    <section id="about">
+      <div class="container">
+        <div class="about-inner">
+          <div class="eyebrow cursor">salt lake city, utah</div>
+          <p class="about-text"><b>CS student</b> at the University of Utah and <b>software engineering intern</b> at dbS Productions and Kingsley Management Company. I build tools, web apps, and the occasional frog.</p>
+          <div class="btns">
+            <a class="btn-primary" href="mailto:cadeachristensen@gmail.com">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              Get in touch
+            </a>
+            <a class="btn-outline" href="https://github.com/cade4christensen" target="_blank" rel="noopener">GitHub</a>
+            <a class="btn-outline" href="https://docs.google.com/document/d/1Pmk3UHqvAf6tBqVRxLBQyllDxft1SfVen-CpoM2I6Eo/export?format=pdf" target="_blank" rel="noopener">Resume</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Skills ── -->
+    <section id="skills">
+      <div class="container">
+        <div class="section-label">What I work with, AI first</div>
+        <h2 class="section-title">Skills & <span>Tech Stack</span></h2>
+        <div class="skills-list">
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#2a0a2e;color:#e879f9;font-size:11px;">AI</div>
+            <div class="skill-info"><div class="skill-name">AI-assisted development</div><div class="skill-type">Claude Code · Codex · ChatGPT, daily driver</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#1a0a2e;color:#c084fc;font-size:11px;">LLM</div>
+            <div class="skill-info"><div class="skill-name">LLM integration</div><div class="skill-type">Gemini &amp; Claude APIs · the chatbot on this page</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#0b1f33;color:#60a5fa;font-size:12px;">Py</div>
+            <div class="skill-info"><div class="skill-name">Python</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#0b1a33;color:#7dd3fc;font-size:12px;">TS</div>
+            <div class="skill-info"><div class="skill-name">TypeScript</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#2a2000;color:#fbbf24;font-size:12px;">JS</div>
+            <div class="skill-info"><div class="skill-name">JavaScript</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#1d0a2e;color:#c084fc;font-size:12px;">C#</div>
+            <div class="skill-info"><div class="skill-name">C#</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#2a1400;color:#fb923c;font-size:22px;">☕</div>
+            <div class="skill-info"><div class="skill-name">Java</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#001a30;color:#60a5fa;font-size:11px;">C++</div>
+            <div class="skill-info"><div class="skill-name">C++</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#1a1430;color:#a78bfa;font-size:11px;">php</div>
+            <div class="skill-info"><div class="skill-name">PHP</div><div class="skill-type">Language</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#001a2a;color:#38bdf8;font-size:11px;">Fl</div>
+            <div class="skill-info"><div class="skill-name">Flutter / Dart</div><div class="skill-type">Mobile</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#001820;color:#22d3ee;font-size:11px;">SQL</div>
+            <div class="skill-info"><div class="skill-name">SQL / Postgres</div><div class="skill-type">Database</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#032a1e;color:#34d399;font-size:12px;">Dj</div>
+            <div class="skill-info"><div class="skill-name">Django</div><div class="skill-type">Framework</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#001a2a;color:#67e8f9;font-size:22px;">⚛</div>
+            <div class="skill-info"><div class="skill-name">React</div><div class="skill-type">Framework</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#1a1a1a;color:#e4e4e7;font-size:12px;">3D</div>
+            <div class="skill-info"><div class="skill-name">Three.js</div><div class="skill-type">3D / WebGL</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#0f2a0f;color:#4ade80;font-size:22px;">◎</div>
+            <div class="skill-info"><div class="skill-name">Geospatial (shapely · pyproj · rasterio)</div><div class="skill-type">Python stack</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#2a1200;color:#f97316;font-size:12px;">CF</div>
+            <div class="skill-info"><div class="skill-name">Cloudflare Workers</div><div class="skill-type">Deployment</div></div>
+          </div>
+    
+          <div class="skill-row reveal">
+            <div class="skill-icon-box" style="background:#200010;color:#f87171;font-size:11px;">git</div>
+            <div class="skill-info"><div class="skill-name">Git</div><div class="skill-type">Version Control</div></div>
+          </div>
+    
+          <div class="skill-row reveal reveal-delay-1">
+            <div class="skill-icon-box" style="background:#2a0a14;color:#fb7185;font-size:12px;">L</div>
+            <div class="skill-info"><div class="skill-name">Laravel</div><div class="skill-type">Framework</div></div>
+          </div>
+    
+        </div>
+      </div>
+    </section>
+    
+    <!-- ── Projects ── -->
+    <section id="projects">
+      <div class="container">
+        <div class="section-label">What I've built</div>
+        <h2 class="section-title">Featured <span>Projects</span></h2>
+        <div class="projects-grid">
+    
+          <div class="project-card project-card-static reveal">
+            <div class="project-number">01</div>
+            <div class="project-name">Metomorph</div>
+            <p class="project-desc">A habit and goal tracker built on a frog-metamorphosis metaphor: each cycle is a self-improvement period, good habits grow limbs, bad habits shed the tail, and an analytics page charts it all. Django REST backend with JWT auth, React + TypeScript front end.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-py">Django</span>
+              <span class="tech-tag tech-ts">React</span>
+              <span class="tech-tag tech-ts">TypeScript</span>
+              <span class="tech-tag tech-net">Postgres</span>
+            </div>
+            <span class="project-link">In development · private repo</span>
+          </div>
+    
+          <div class="project-card project-card-static reveal reveal-delay-1">
+            <div class="project-number">02</div>
+            <div class="project-name">This site</div>
+            <p class="project-desc">The frog you met at the top. It lives in the page: it climbs the walls, perches on the name, drops down to explore the cards as you scroll, and falls asleep when you leave it alone. Orthographic camera, dithered to a dot grid in a shader, behavior measured from the Blender clips so its feet never skate.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-ts">TypeScript</span>
+              <span class="tech-tag tech-three">Three.js</span>
+              <span class="tech-tag tech-cf">Cloudflare</span>
+            </div>
+            <span class="project-link">You are looking at it</span>
+          </div>
+    
+          <a class="project-card reveal reveal-delay-2" href="https://github.com/cade4christensen/Geo-Analyzer" target="_blank" rel="noopener">
+            <div class="project-number">03</div>
+            <div class="project-name">Geo Analyzer</div>
+            <p class="project-desc">Turn a latitude/longitude into search-planning data: distance to the nearest road, trail, railroad, utility line and water; the surface at that point; and a population class. OSM, NLCD land cover and TIGER roads behind a Streamlit UI and a batch CLI.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-py">Python</span>
+              <span class="tech-tag tech-py">Shapely</span>
+              <span class="tech-tag tech-py">Streamlit</span>
+            </div>
+            <span class="project-link">View on GitHub →</span>
+          </a>
+    
+          <div class="project-card project-card-static reveal">
+            <div class="project-number">04</div>
+            <div class="project-name">ADS-B Search & Rescue Pipeline</div>
+            <p class="project-desc">Automated a six-step aviation SAR research checklist at dbS Productions: parse 400+ AFRCC workbooks, match tail numbers to NTSB cases, scrape flight tracks from dockets and ADS-B Exchange, and compute last-known-position metrics for a published book chapter.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-py">Python</span>
+              <span class="tech-tag tech-py">pandas</span>
+              <span class="tech-tag tech-html">37 tests</span>
+            </div>
+            <span class="project-link">Internship work · private repo</span>
+          </div>
+    
+          <a class="project-card reveal reveal-delay-1" href="https://github.com/cade4christensen/Jormunvector" target="_blank" rel="noopener">
+            <div class="project-number">05</div>
+            <div class="project-name">Jormunvector</div>
+            <p class="project-desc">A browser vector-drawing editor built on Canvas: line, Bézier, freehand (with RDP simplification), ellipse and rectangle tools, node-level editing, stroke expansion with tapers and caps, and text prompts that generate shapes.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-js">JavaScript</span>
+              <span class="tech-tag tech-html">Canvas</span>
+              <span class="tech-tag tech-js">Vite</span>
+            </div>
+            <span class="project-link">View on GitHub →</span>
+          </a>
+    
+          <a class="project-card reveal reveal-delay-2" href="https://github.com/cade4christensen/own-it" target="_blank" rel="noopener">
+            <div class="project-number">06</div>
+            <div class="project-name">Own It</div>
+            <p class="project-desc">A live training game on accountability. Players join from their phones, rewrite a workplace excuse anonymously each round, and the room votes. Host view, projector view with QR code, podium at the end. No logins, just a polling API.</p>
+            <div class="project-tech">
+              <span class="tech-tag tech-php">PHP</span>
+              <span class="tech-tag tech-php">Laravel</span>
+              <span class="tech-tag tech-net">SQL</span>
+            </div>
+            <span class="project-link">View on GitHub →</span>
+          </a>
+    
+        </div>
+      </div>
+    </section>
+    
+    <!-- ── Education ── -->
+    <section id="education">
+      <div class="container">
+        <div class="section-label">Where I study</div>
+        <h2 class="section-title">Education</h2>
+        <div class="edu-card reveal">
+          <div>
+            <div class="edu-school">University of Utah</div>
+            <div class="edu-degree">B.S. Computer Science</div>
+            <ul class="edu-highlights">
+              <li>Software Engineering Intern at dbS Productions and Kingsley Management Company — geospatial pipelines for search-and-rescue research, internal tooling and automation</li>
+              <li>Full-stack development — networked systems, databases, client-server architecture</li>
+              <li>Software engineering principles — design patterns, testing, scalability</li>
+              <li>Core CS theory — data structures, algorithms, computability</li>
+              <li>Systems programming in C++ and low-level concepts</li>
+            </ul>
+          </div>
+          <div>
+            <div class="edu-badge">
+              <div class="edu-badge-label">Status</div>
+              <div class="edu-badge-value">In Progress</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ── Contact ── -->
+    <section id="contact">
+      <div class="contact-glow"></div>
+      <div class="container">
+        <div class="contact-eyebrow">open to work</div>
+        <h2 class="contact-title">Let's build something.</h2>
+        <p class="contact-subtitle">Software engineering roles, internships, contract work, or a project you want a second pair of hands on. <b>My inbox is open.</b></p>
+        <div class="contact-links">
+          <a class="contact-pill pill-email" href="mailto:cadeachristensen@gmail.com">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            Email me
+          </a>
+          <a class="contact-pill pill-github" href="https://github.com/cade4christensen" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            GitHub
+          </a>
+          <a class="contact-pill pill-github" href="https://www.linkedin.com/in/cade-a-christensen/" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="contact-pill pill-github" href="https://docs.google.com/document/d/1Pmk3UHqvAf6tBqVRxLBQyllDxft1SfVen-CpoM2I6Eo/export?format=pdf" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+            Resume
+          </a>
+        </div>
+        <p class="contact-email"><a href="mailto:cadeachristensen@gmail.com">cadeachristensen@gmail.com</a></p>
+      </div>
+    </section>
+    
+    <!-- ── Footer ── -->
+    <footer>
+      <span class="footer-text">© 2026 <span>Cade Christensen</span></span>
+      <span class="footer-text">Built by hand — Salt Lake City, UT</span>
+    </footer>
+    
+    <!-- ── Chat widget ── -->
+    <button id="chat-toggle" aria-label="Ask about Cade" aria-expanded="false">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+    <div id="chat-panel" role="dialog" aria-label="Chat about Cade">
+      <div class="chat-head">
+        <div>
+          <div class="chat-head-title">Ask about Cade</div>
+          <div class="chat-head-sub">A small bot that knows his projects. Powered by Gemini.</div>
+        </div>
+        <button class="chat-close" aria-label="Close chat">×</button>
+      </div>
+      <div class="chat-log" id="chat-log">
+        <div class="chat-msg bot">Hi! Ask me anything about Cade's work, skills, or how to get in touch.</div>
+      </div>
+      <div class="chat-suggest">
+        <button>What is he working on now?</button>
+        <button>Tell me about the frog site</button>
+        <button>What languages does he use?</button>
+      </div>
+      <form class="chat-form" id="chat-form" autocomplete="off">
+        <input id="chat-input" type="text" maxlength="500" placeholder="Ask a question…" aria-label="Your question">
+        <button type="submit" id="chat-send">Send</button>
+      </form>
+    </div>
+    
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -164,9 +164,9 @@ const TRIMMED = new Set<ClipKey>(["settle", "wake", "wallStart", "wallLeanOut", 
 // After a quarter turn: how often it carries on round, stops to look about
 // while facing 90 degrees, or thinks better of it and turns back.
 // With room ahead, how often a crawl sets off the other way (and so turns round first).
-const TURN_CHANCE = 0.08;
+const TURN_CHANCE = 0.04; // a turn on a whim, mid-roam (kept rare: turning reads as fidgeting)
 // At the end of a short perch (name, ledges), how often it leaps off instead of turning round.
-const LEAVE_PERCH = 0.7;
+const LEAVE_PERCH = 0.85;
 const QUARTER_CONTINUE = 0.72;
 const QUARTER_PAUSE = 0.18; // (the rest, 10%, turn back)
 const WALL_LOOK_CHANCE = 0.45; // pausing on a wall: chance it looks around rather than just clinging
@@ -633,6 +633,41 @@ export class Frog {
   };
 
   constructor(private world: World) {}
+
+  // Startled in mid-leap: it bolts once it has landed.
+  private afterLanding: (() => void) | null = null;
+  /** Whether it is in the air (or just touching down). */
+  get leaping() {
+    return this.state === "jumping" || this.state === "wallLanding";
+  }
+
+  /** Startled: one long bound straight to `s` on `surface`, however far. */
+  bolt(surface: Surface, s: number) {
+    if (!this.mixer || !this.surface) return;
+    if (this.leaping) {
+      this.afterLanding = () => this.bolt(surface, s);
+      return;
+    }
+    this.clearPlans();
+    this.jumpTo(surface, s, true);
+  }
+
+  /** Drops whatever it was in the middle of (a crawl, a turn, a sequence, going to bed). */
+  private clearPlans() {
+    this.queue = [];
+    this.afterQueue = undefined;
+    this.then = undefined;
+    this.afterTurn = undefined;
+    this.resumeCrawl = false;
+    this.resumeAfterLook = false;
+    this.sleepy = false;
+    this.pendingWallHop = null;
+    this.peeking = false;
+    this.turnFix = undefined;
+    this.turnStage = null;
+    this.quarterQ = null;
+    this.afterQuarterPause = false;
+  }
 
   async load(): Promise<void> {
     try {
@@ -1442,7 +1477,7 @@ export class Frog {
       // jump the way they're facing than turn round first.
       const along = p.clone().sub(this.root.position).dot(tangentOf(here));
       const ahead = isWall(here) || Math.abs(along) < this.length * 0.3 || Math.sign(along) === this.dir;
-      const score = (Math.random() / (1 + dist / (this.length * 1.5))) * (ahead ? 1 : 0.25);
+      const score = (Math.random() / (1 + dist / (this.length * 1.5))) * (ahead ? 1 : 0.12);
       if (score > bestScore) {
         bestScore = score;
         best = { surface, s };
@@ -1705,6 +1740,11 @@ export class Frog {
     const done = this.jumpStill || Math.max(this.airEnd, this.land.curve.length ? this.land.end : 0) + 0.3;
     if (t >= done) {
       this.root.position.copy(j.to);
+      if (this.afterLanding) {
+        const then = this.afterLanding;
+        this.afterLanding = null;
+        return then();
+      }
       if (this.resumeCrawl) {
         this.resumeCrawl = false;
         this.state = "crawling";
