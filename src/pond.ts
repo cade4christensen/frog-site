@@ -125,7 +125,7 @@ export class Pond {
         // Shorter tufts along the front edge so they don't hide the water.
         const front = Math.sin(angle) > 0 ? Math.sin(angle) : 0;
         if (front > 0.35 && Math.random() < 0.5) continue;
-        const n = 3 + Math.floor(Math.random() * 3);
+        const n = 4 + Math.floor(Math.random() * 4);
         const tall = 1 - front * 0.75;
         this.tufts.push({
           angle,
@@ -133,7 +133,8 @@ export class Pond {
           blades: Array.from({ length: n }, (_, k) => ({
             // A narrow fan: blades stand nearly upright, just splayed enough to read as a tuft.
             lean: ((k - (n - 1) / 2) * 0.14 + (Math.random() - 0.5) * 0.08),
-            height: (0.3 + Math.random() * 0.7) * tall, // in pond depths (ry)
+            // Mostly short, with the odd tall blade poking up.
+            height: (0.25 + Math.random() ** 2 * 0.95) * tall, // in pond depths (ry)
           })),
           phase: Math.random() * Math.PI * 2,
         });
@@ -141,10 +142,10 @@ export class Pond {
     }
     if (!this.reeds.length) {
       for (const side of [-1, 1]) {
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 9; i++) {
           this.reeds.push({
-            at: side * (0.82 + Math.random() * 0.3),
-            height: 1.8 + Math.random() * 2.2, // in pond depths (ry)
+            at: side * (0.8 + Math.random() * 0.34),
+            height: 2.4 + Math.random() * 2.0, // in pond depths (ry): well clear of the grass
             lean: side * (0.05 + Math.random() * 0.25),
             phase: Math.random() * Math.PI * 2,
             head: Math.random() < 0.5, // some have cattail heads
@@ -438,11 +439,13 @@ export class Pond {
       for (const b of t.blades) {
         const h = b.height * ry;
         const lean = outward * 0.1 + b.lean + sway;
-        const tipX = baseX + lean * h;
+        // Straight most of the way up, then the tip bends over a little like a real blade.
+        const bend = (outward * 0.4 + b.lean * 2) * h * 0.25;
+        const tipX = baseX + lean * h + bend;
         const tipY = baseY - h;
         ctx.beginPath();
         ctx.moveTo(baseX, baseY);
-        ctx.lineTo(tipX, tipY);
+        ctx.quadraticCurveTo(baseX + lean * h * 0.7, baseY - h * 0.75, tipX, tipY);
         ctx.stroke();
       }
     }
@@ -453,8 +456,8 @@ export class Pond {
     const { ctx } = this;
     const { cx, cy, rx, ry } = this.pool;
     if (rx <= 0) return;
-    ctx.lineWidth = (this.w / this.canvas.width) * 1.1;
-    ctx.strokeStyle = ctx.fillStyle = "rgb(70, 0, 0)";
+    ctx.lineWidth = (this.w / this.canvas.width) * 1.6;
+    ctx.strokeStyle = ctx.fillStyle = "rgb(120, 0, 0)";
     for (const r of this.reeds) {
       const baseX = cx + r.at * rx;
       const baseY = cy + ry * 0.3;
@@ -471,7 +474,7 @@ export class Pond {
         const hx = baseX + (tipX - baseX) * 0.85;
         const hy = baseY - h * 0.85;
         ctx.beginPath();
-        ctx.ellipse(hx, hy, ry * 0.12, ry * 0.35, Math.atan2(tipX - baseX, baseY - tipY), 0, Math.PI * 2);
+        ctx.ellipse(hx, hy, ry * 0.16, ry * 0.45, Math.atan2(tipX - baseX, baseY - tipY), 0, Math.PI * 2);
         ctx.fill();
       }
     }
