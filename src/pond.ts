@@ -226,18 +226,43 @@ export class Pond {
     }
   }
 
-  /** Pads drift after a shove, slow down, nudge each other apart, and ease back home. */
+  /** How far a pad can get from its spot: its stem, rooted in the floor below. */
+  private tether(pad: LilyPad) {
+    return pad.size * this.pool.rx * 1.3;
+  }
+
+  /**
+   * Pads drift after a shove, slow down and nudge each other apart, but each
+   * is on a stem: it pulls back harder the further the pad strays, and at
+   * full stretch the pad can go no further.
+   */
   private movePads(dt: number) {
     const { cx, cy, rx, ry } = this.pool;
     const drag = Math.exp(-dt * 1.6);
     for (const pad of this.pads) {
-      // A soft pull back toward its own spot, so the pond never empties out.
-      pad.vx -= pad.ox * 0.25 * dt;
-      pad.vy -= pad.oy * 0.25 * dt;
+      const stem = this.tether(pad);
+      const off = Math.hypot(pad.ox, pad.oy);
+      // The stem's pull: gentle near home, firm as it nears full stretch.
+      const pull = 0.6 + 3 * (off / stem) ** 2;
+      pad.vx -= pad.ox * pull * dt;
+      pad.vy -= pad.oy * pull * dt;
       pad.vx *= drag;
       pad.vy *= drag;
       pad.ox += pad.vx * dt;
       pad.oy += pad.vy * dt;
+      // Taut: hold it there and drop any speed that was carrying it further out.
+      const now = Math.hypot(pad.ox, pad.oy);
+      if (now > stem) {
+        const nx = pad.ox / now;
+        const ny = pad.oy / now;
+        pad.ox = nx * stem;
+        pad.oy = ny * stem;
+        const outward = pad.vx * nx + pad.vy * ny;
+        if (outward > 0) {
+          pad.vx -= outward * nx;
+          pad.vy -= outward * ny;
+        }
+      }
       // Keep well inside the water.
       const px = (pad.x * rx + pad.ox) / (rx - pad.size * rx);
       const py = (pad.y * ry + pad.oy) / (ry - pad.size * rx * 0.5);
@@ -331,6 +356,14 @@ export class Pond {
       const bob = this.reduceMotion ? 0 : Math.sin(this.time * 0.8 + pad.phase) * ry * 0.04;
       const x = cx + pad.x * rx + pad.ox;
       const y = cy + pad.y * ry + pad.oy + bob;
+      // Pulled off its spot, the stem shows: a faint line from where it's rooted.
+      if (Math.hypot(pad.ox, pad.oy) > 3) {
+        ctx.beginPath();
+        ctx.moveTo(cx + pad.x * rx, cy + pad.y * ry);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = "rgb(60, 0, 0)";
+        ctx.stroke();
+      }
       const w = pad.size * rx;
       // Tilted a little toward the viewer, so rounder than the pond's own angle.
       const h = w * 0.5;
