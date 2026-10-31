@@ -7,7 +7,21 @@
  */
 
 type Ripple = { x: number; y: number; age: number; life: number; size: number; strength: number };
-type LilyPad = { x: number; y: number; size: number; notch: number; phase: number; flower: boolean };
+/** A pad: `x`, `y` in units of the pond's radii, `size` in pond widths; its `look` sets it apart. */
+type LilyPad = {
+  x: number;
+  y: number;
+  size: number;
+  notch: number;
+  phase: number;
+  look: PadLook;
+  // Pushed about by ripples: how far it has drifted from its spot (px) and how fast.
+  ox: number;
+  oy: number;
+  vx: number;
+  vy: number;
+};
+type PadLook = "plain" | "veined" | "flower" | "nibbled";
 type Reed = { at: number; height: number; lean: number; phase: number; head: boolean };
 /** A tuft of grass on the bank: `angle` round the pool, a few short blades. */
 type Tuft = { angle: number; out: number; blades: { lean: number; height: number }[]; phase: number };
@@ -76,17 +90,30 @@ export class Pond {
   setPool(pool: PoolShape) {
     this.pool = pool;
     if (!this.pads.length) {
-      // Spread out across the water, never quite touching the rim.
-      const slots = [-0.55, -0.15, 0.25, 0.6];
-      for (const [i, x] of slots.entries()) {
-        this.pads.push({
-          x: x + (Math.random() - 0.5) * 0.15,
-          y: (Math.random() - 0.5) * 0.3, // near the middle so taller pads aren't clipped by the rim
-          size: 0.11 + Math.random() * 0.07, // in pond widths (rx)
-          notch: Math.random() * Math.PI * 2,
-          phase: Math.random() * Math.PI * 2,
-          flower: i === 1 || (i === 3 && Math.random() < 0.5),
-        });
+      // A handful of pads of quite different sizes, dropped onto the water
+      // wherever they fit without touching each other or the rim.
+      const looks: PadLook[] = ["flower", "veined", "nibbled", "plain", "veined", "plain"];
+      const want = 5 + Math.floor(Math.random() * 2);
+      const { rx, ry } = pool;
+      for (let i = 0; i < want; i++) {
+        const size = i === 0 ? 0.2 + Math.random() * 0.05 : 0.06 + Math.random() * 0.12;
+        const w = size * rx; // half-width in px; half-height is w / 2
+        for (let tries = 0; tries < 40; tries++) {
+          const x = (Math.random() * 2 - 1) * 0.8;
+          const y = (Math.random() * 2 - 1) * 0.5;
+          // Inside the water, pad included.
+          if (((Math.abs(x) * rx + w) / rx) ** 2 + ((Math.abs(y) * ry + w * 0.5) / ry) ** 2 > 0.92) continue;
+          const clash = this.pads.some((p) => {
+            const pw = p.size * rx;
+            const dx = (p.x - x) * rx;
+            const dy = (p.y - y) * ry;
+            const gap = 1.25; // a little water showing between pads
+            return (dx / ((pw + w) * gap)) ** 2 + (dy / ((pw + w) * 0.5 * gap)) ** 2 < 1;
+          });
+          if (clash) continue;
+          this.pads.push({ x, y, size, notch: Math.random() * Math.PI * 2, phase: Math.random() * Math.PI * 2, look: looks[i], ox: 0, oy: 0, vx: 0, vy: 0 });
+          break;
+        }
       }
     }
     if (!this.tufts.length) {
@@ -168,6 +195,7 @@ export class Pond {
     ctx.clip();
     this.drawWater();
     this.drawRipples(dt);
+    this.movePads(dt);
     this.drawPads(); // on top: rings pass under the pads
     ctx.restore();
     this.drawRim();
@@ -177,10 +205,67 @@ export class Pond {
     ctx.restore();
   }
 
-  /** Ripple at a screen point (CSS px). */
+  /** Ripple at a page point (CSS px). It also shoves any pad it reaches. */
   addRipple(x: number, y: number, size: number, strength: number) {
     this.ripples.push({ x, y, age: 0, life: 2.2 + size / 160, size, strength });
     if (this.ripples.length > 120) this.ripples.shift();
+    if (this.reduceMotion) return;
+    const { cx, cy, rx, ry } = this.pool;
+    for (const pad of this.pads) {
+      const px = cx + pad.x * rx + pad.ox;
+      const py = cy + pad.y * ry + pad.oy;
+      const dx = px - x;
+      const dy = (py - y) / SQUASH; // the water is foreshortened: a ring reaches less far up and down
+      const d = Math.hypot(dx, dy);
+      const reach = size * 1.2;
+      if (d < 1 || d > reach) continue;
+      // Harder shoves close in, and small pads skitter further than big ones.
+      const push = strength * 90 * (1 - d / reach) * (0.12 / pad.size);
+      pad.vx += (dx / d) * push;
+      pad.vy += (dy / d) * push * SQUASH;
+    }
+  }
+
+  /** Pads drift after a shove, slow down, nudge each other apart, and ease back home. */
+  private movePads(dt: number) {
+    const { cx, cy, rx, ry } = this.pool;
+    const drag = Math.exp(-dt * 1.6);
+    for (const pad of this.pads) {
+      // A soft pull back toward its own spot, so the pond never empties out.
+      pad.vx -= pad.ox * 0.25 * dt;
+      pad.vy -= pad.oy * 0.25 * dt;
+      pad.vx *= drag;
+      pad.vy *= drag;
+      pad.ox += pad.vx * dt;
+      pad.oy += pad.vy * dt;
+      // Keep well inside the water.
+      const px = (pad.x * rx + pad.ox) / (rx - pad.size * rx);
+      const py = (pad.y * ry + pad.oy) / (ry - pad.size * rx * 0.5);
+      const out = Math.hypot(px, py);
+      if (out > 0.95) {
+        pad.ox -= (px * (out - 0.95) * (rx - pad.size * rx)) / out;
+        pad.oy -= (py * (out - 0.95) * (ry - pad.size * rx * 0.5)) / out;
+        pad.vx *= 0.5;
+        pad.vy *= 0.5;
+      }
+    }
+    // Pads bump: push overlapping pairs apart.
+    for (let i = 0; i < this.pads.length; i++) {
+      for (let j = i + 1; j < this.pads.length; j++) {
+        const a = this.pads[i];
+        const b = this.pads[j];
+        const w = (a.size + b.size) * rx * 1.15;
+        const dx = (b.x - a.x) * rx + b.ox - a.ox;
+        const dy = ((b.y - a.y) * ry + b.oy - a.oy) * 2; // pads are half as tall as wide
+        const d = Math.hypot(dx, dy) || 1;
+        if (d >= w) continue;
+        const shove = ((w - d) / w) * 60 * dt;
+        a.vx -= (dx / d) * shove;
+        a.vy -= (dy / d) * shove * 0.5;
+        b.vx += (dx / d) * shove;
+        b.vy += (dy / d) * shove * 0.5;
+      }
+    }
   }
 
   private drawWater() {
@@ -244,26 +329,60 @@ export class Pond {
     ctx.globalCompositeOperation = "source-over";
     for (const pad of this.pads) {
       const bob = this.reduceMotion ? 0 : Math.sin(this.time * 0.8 + pad.phase) * ry * 0.04;
-      const x = cx + pad.x * rx;
-      const y = cy + pad.y * ry + bob;
+      const x = cx + pad.x * rx + pad.ox;
+      const y = cy + pad.y * ry + pad.oy + bob;
       const w = pad.size * rx;
       // Tilted a little toward the viewer, so rounder than the pond's own angle.
       const h = w * 0.5;
       const turn = this.reduceMotion ? 0 : Math.sin(this.time * 0.15 + pad.phase) * 0.15;
-      const gap = 0.35; // half-width of the notch, radians
+      const gap = pad.look === "nibbled" ? 0.6 : 0.35; // half-width of the notch, radians
+      const a0 = pad.notch + turn + gap;
+      const a1 = pad.notch + turn - gap + Math.PI * 2;
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.ellipse(x, y, w, h, 0, pad.notch + turn + gap, pad.notch + turn - gap + Math.PI * 2);
+      ctx.ellipse(x, y, w, h, 0, a0, a1);
       ctx.closePath();
-      ctx.fillStyle = "rgb(55, 0, 0)";
+      // Plain pads are a touch darker, so the veined ones read as lighter leaves.
+      ctx.fillStyle = pad.look === "plain" ? "rgb(40, 0, 0)" : "rgb(55, 0, 0)";
       ctx.fill();
       ctx.strokeStyle = "rgb(95, 0, 0)";
       ctx.stroke();
-      if (pad.flower) {
-        // A small bloom sitting on the pad.
+      if (pad.look === "nibbled") {
+        // A couple of bites out of the far edge.
+        for (const k of [0.9, 1.6]) {
+          const a = pad.notch + turn + Math.PI + k;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.cos(a) * w, y + Math.sin(a) * h, w * 0.14, h * 0.2, 0, 0, Math.PI * 2);
+          ctx.fillStyle = "rgb(0, 0, 0)";
+          ctx.globalCompositeOperation = "source-over";
+          ctx.fill();
+        }
+      }
+      if (pad.look === "veined") {
+        // Veins fanning out from the stem to the rim.
+        ctx.strokeStyle = "rgb(120, 0, 0)";
+        for (let k = 1; k <= 4; k++) {
+          const a = a0 + ((a1 - a0) * k) / 5;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(a) * w * 0.85, y + Math.sin(a) * h * 0.85);
+          ctx.stroke();
+        }
+      }
+      if (pad.look === "flower") {
+        // A bloom sitting on the pad: a few petals round a bright middle.
+        const fx = x - w * 0.15;
+        const fy = y - h * 0.5;
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + pad.phase;
+          ctx.beginPath();
+          ctx.ellipse(fx + Math.cos(a) * w * 0.16, fy + Math.sin(a) * h * 0.4, w * 0.13, h * 0.3, a, 0, Math.PI * 2);
+          ctx.fillStyle = "rgb(110, 0, 0)";
+          ctx.fill();
+        }
         ctx.beginPath();
-        ctx.ellipse(x - w * 0.2, y - h * 0.6, w * 0.22, h * 0.7, 0, 0, Math.PI * 2);
-        ctx.fillStyle = "rgb(140, 0, 0)";
+        ctx.ellipse(fx, fy, w * 0.1, h * 0.25, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgb(200, 0, 0)";
         ctx.fill();
       }
     }
