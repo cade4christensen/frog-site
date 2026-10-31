@@ -65,7 +65,8 @@ function circleHitsBox(c: THREE.Vector3, r: number, b: Box) {
   return dx * dx + dy * dy < r * r;
 }
 scene.add(frog.root);
-const frogReady = frog.load();
+const loader = document.querySelector<HTMLElement>(".loader");
+const frogReady = frog.load((share) => loader?.style.setProperty("--progress", share.toFixed(3)));
 // For poking at its behavior from the console while developing.
 if (import.meta.env.DEV) Object.assign(window, { frog, world: () => ({ textBoxes, perches, surfaces }) });
 
@@ -355,9 +356,12 @@ frogReady.then(() => {
   };
   renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
   // First frame drawn: fade the scene in over the loader, then drop the loader.
+  // (Dev: ?loader keeps it up so it can be looked at.)
+  if (import.meta.env.DEV && location.search.includes("loader")) return;
+  loader?.style.setProperty("--progress", "1");
   requestAnimationFrame(() => {
     document.body.classList.add("ready");
-    setTimeout(() => document.querySelector(".loader")?.remove(), 700);
+    setTimeout(() => loader?.remove(), 700);
   });
   // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
   if (import.meta.env.DEV) Object.assign(window, { step });

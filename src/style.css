@@ -59,37 +59,52 @@ body.ready #scene {
   opacity: 1;
 }
 
-/* While the frog model downloads: a row of dots pulsing where the pond will be. */
+/*
+ * While the frog model downloads: a bar of dot cells where the pond will be,
+ * filling with the download, and a word underneath. Dots match the scene's
+ * 4px grid so the bar looks like part of the pond when the pond fades in.
+ */
 .loader {
   position: absolute;
   left: 50%;
   top: 42%;
   transform: translate(-50%, -50%);
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
   transition: opacity 0.4s ease;
+  --progress: 0;
 }
-.loader i {
-  width: 4px;
+.loader-bar {
+  --cells: 32;
+  width: calc(var(--cells) * 8px - 4px);
   height: 4px;
-  background: var(--dim);
-  animation: loader-pulse 1.2s ease-in-out infinite;
+  /* Dim track of dots, with lit dots over the done share. */
+  background:
+    linear-gradient(var(--accent), var(--accent)) left / calc(var(--progress) * 100%) 100% no-repeat,
+    var(--dim);
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+  mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+  transition: background-size 0.25s ease-out;
+  animation: loader-breathe 1.6s ease-in-out infinite;
 }
-.loader i:nth-child(2) { animation-delay: 0.12s; }
-.loader i:nth-child(3) { animation-delay: 0.24s; }
-.loader i:nth-child(4) { animation-delay: 0.36s; }
-.loader i:nth-child(5) { animation-delay: 0.48s; }
-@keyframes loader-pulse {
-  0%, 100% { opacity: 0.25; }
+.loader-text {
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+@keyframes loader-breathe {
+  0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
 }
 body.ready .loader {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .loader i {
+  .loader-bar {
     animation: none;
-    opacity: 0.6;
   }
 }
 

@@ -669,9 +669,12 @@ export class Frog {
     this.afterQuarterPause = false;
   }
 
-  async load(): Promise<void> {
+  /** Loads the model; `onProgress` gets 0..1 as it downloads (when the size is known). */
+  async load(onProgress?: (share: number) => void): Promise<void> {
     try {
-      const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
+      const gltf = await new GLTFLoader().loadAsync(MODEL_URL, (e) => {
+        if (onProgress && e.total > 0) onProgress(Math.min(1, e.loaded / e.total));
+      });
       this.useModel(gltf.scene, gltf.animations);
     } catch {
       // No exported model yet; leave the stage empty.
