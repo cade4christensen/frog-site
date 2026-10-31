@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cade-work",
+  "main": "worker/index.js",
   "compatibility_date": "2026-10-06",
   "workers_dev": true,
   "observability": {
@@ -12,6 +13,8 @@
   ],
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
   }
 }
