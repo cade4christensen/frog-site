@@ -90,20 +90,22 @@ export class Pond {
       }
     }
     if (!this.tufts.length) {
-      const count = 46;
+      // Two rings of tufts: one hugging the rim, one a little further out, so
+      // the bank reads as a thick fringe rather than a row of blades.
+      const count = 120;
       for (let i = 0; i < count; i++) {
-        const angle = ((i + Math.random() * 0.6) / count) * Math.PI * 2;
-        // Fewer and shorter tufts along the front edge so they don't hide the water.
+        const angle = ((i + Math.random() * 0.8) / count) * Math.PI * 2;
+        // Shorter tufts along the front edge so they don't hide the water.
         const front = Math.sin(angle) > 0 ? Math.sin(angle) : 0;
-        if (front > 0.3 && Math.random() < 0.55) continue;
-        const n = 2 + Math.floor(Math.random() * 3);
-        const tall = 1 - front * 0.6;
+        if (front > 0.35 && Math.random() < 0.5) continue;
+        const n = 3 + Math.floor(Math.random() * 3);
+        const tall = 1 - front * 0.75;
         this.tufts.push({
           angle,
-          out: 0.98 + Math.random() * 0.1, // just outside the rim, in units of the radii
+          out: (i % 2 ? 0.97 : 1.04) + Math.random() * 0.08, // on the rim or just beyond, in units of the radii
           blades: Array.from({ length: n }, (_, k) => ({
             lean: ((k - (n - 1) / 2) * 0.45 + (Math.random() - 0.5) * 0.3),
-            height: (0.35 + Math.random() * 0.55) * tall, // in pond depths (ry)
+            height: (0.3 + Math.random() * 0.7) * tall, // in pond depths (ry)
           })),
           phase: Math.random() * Math.PI * 2,
         });

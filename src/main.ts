@@ -354,6 +354,11 @@ frogReady.then(() => {
     dither.render(scene, camera);
   };
   renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
+  // First frame drawn: fade the scene in over the loader, then drop the loader.
+  requestAnimationFrame(() => {
+    document.body.classList.add("ready");
+    setTimeout(() => document.querySelector(".loader")?.remove(), 700);
+  });
   // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
   if (import.meta.env.DEV) Object.assign(window, { step });
 });
