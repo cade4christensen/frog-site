@@ -9,6 +9,8 @@
 type Ripple = { x: number; y: number; age: number; life: number; size: number; strength: number };
 type LilyPad = { x: number; y: number; size: number; notch: number; phase: number; flower: boolean };
 type Reed = { at: number; height: number; lean: number; phase: number; head: boolean };
+/** A tuft of grass on the bank: `angle` round the pool, a few short blades. */
+type Tuft = { angle: number; out: number; blades: { lean: number; height: number }[]; phase: number };
 type Firefly = { x: number; y: number; age: number; life: number; roam: number; speed: number; phase: number };
 /** The pool as it appears on screen (CSS px): an ellipse. */
 export type PoolShape = { cx: number; cy: number; rx: number; ry: number };
@@ -36,6 +38,8 @@ export class Pond {
   private reeds: Reed[] = [];
   // Lily pads floating on the water; x, y in units of the pond's radii.
   private pads: LilyPad[] = [];
+  // Grass along the bank all the way round, thicker at the back.
+  private tufts: Tuft[] = [];
 
   constructor() {
     // Pointer positions are viewport px; the pond lives in page px.
@@ -82,6 +86,26 @@ export class Pond {
           notch: Math.random() * Math.PI * 2,
           phase: Math.random() * Math.PI * 2,
           flower: i === 1 || (i === 3 && Math.random() < 0.5),
+        });
+      }
+    }
+    if (!this.tufts.length) {
+      const count = 46;
+      for (let i = 0; i < count; i++) {
+        const angle = ((i + Math.random() * 0.6) / count) * Math.PI * 2;
+        // Fewer and shorter tufts along the front edge so they don't hide the water.
+        const front = Math.sin(angle) > 0 ? Math.sin(angle) : 0;
+        if (front > 0.3 && Math.random() < 0.55) continue;
+        const n = 2 + Math.floor(Math.random() * 3);
+        const tall = 1 - front * 0.6;
+        this.tufts.push({
+          angle,
+          out: 0.98 + Math.random() * 0.1, // just outside the rim, in units of the radii
+          blades: Array.from({ length: n }, (_, k) => ({
+            lean: ((k - (n - 1) / 2) * 0.45 + (Math.random() - 0.5) * 0.3),
+            height: (0.35 + Math.random() * 0.55) * tall, // in pond depths (ry)
+          })),
+          phase: Math.random() * Math.PI * 2,
         });
       }
     }
@@ -144,6 +168,7 @@ export class Pond {
     this.drawRipples(dt);
     ctx.restore();
     this.drawRim();
+    this.drawGrass();
     this.drawReeds();
     this.drawFireflies(dt);
     ctx.restore();
@@ -235,6 +260,32 @@ export class Pond {
         ctx.ellipse(x - w * 0.2, y - h * 0.6, w * 0.22, h * 0.7, 0, 0, Math.PI * 2);
         ctx.fillStyle = "rgb(140, 0, 0)";
         ctx.fill();
+      }
+    }
+  }
+
+  /** Short grass all round the bank: little fans of blades leaning away from the water. */
+  private drawGrass() {
+    const { ctx } = this;
+    const { cx, cy, rx, ry } = this.pool;
+    if (rx <= 0) return;
+    ctx.lineWidth = (this.w / this.canvas.width) * 1.1;
+    ctx.strokeStyle = "rgb(60, 0, 0)";
+    for (const t of this.tufts) {
+      const baseX = cx + Math.cos(t.angle) * rx * t.out;
+      const baseY = cy + Math.sin(t.angle) * ry * t.out;
+      // Blades lean outward from the pool, with a little sway.
+      const outward = Math.cos(t.angle);
+      const sway = this.reduceMotion ? 0 : Math.sin(this.time * 0.7 + t.phase) * 0.12;
+      for (const b of t.blades) {
+        const h = b.height * ry;
+        const lean = outward * 0.35 + b.lean + sway;
+        const tipX = baseX + lean * h;
+        const tipY = baseY - h;
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY);
+        ctx.quadraticCurveTo(baseX + lean * h * 0.3, baseY - h * 0.55, tipX, tipY);
+        ctx.stroke();
       }
     }
   }
