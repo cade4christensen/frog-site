@@ -104,7 +104,8 @@ export class Pond {
           angle,
           out: (i % 2 ? 0.97 : 1.04) + Math.random() * 0.08, // on the rim or just beyond, in units of the radii
           blades: Array.from({ length: n }, (_, k) => ({
-            lean: ((k - (n - 1) / 2) * 0.45 + (Math.random() - 0.5) * 0.3),
+            // A narrow fan: blades stand nearly upright, just splayed enough to read as a tuft.
+            lean: ((k - (n - 1) / 2) * 0.14 + (Math.random() - 0.5) * 0.08),
             height: (0.3 + Math.random() * 0.7) * tall, // in pond depths (ry)
           })),
           phase: Math.random() * Math.PI * 2,
@@ -276,17 +277,17 @@ export class Pond {
     for (const t of this.tufts) {
       const baseX = cx + Math.cos(t.angle) * rx * t.out;
       const baseY = cy + Math.sin(t.angle) * ry * t.out;
-      // Blades lean outward from the pool, with a little sway.
+      // Blades stand straight, tipping only slightly away from the water, with a faint sway.
       const outward = Math.cos(t.angle);
-      const sway = this.reduceMotion ? 0 : Math.sin(this.time * 0.7 + t.phase) * 0.12;
+      const sway = this.reduceMotion ? 0 : Math.sin(this.time * 0.7 + t.phase) * 0.04;
       for (const b of t.blades) {
         const h = b.height * ry;
-        const lean = outward * 0.35 + b.lean + sway;
+        const lean = outward * 0.1 + b.lean + sway;
         const tipX = baseX + lean * h;
         const tipY = baseY - h;
         ctx.beginPath();
         ctx.moveTo(baseX, baseY);
-        ctx.quadraticCurveTo(baseX + lean * h * 0.3, baseY - h * 0.55, tipX, tipY);
+        ctx.lineTo(tipX, tipY);
         ctx.stroke();
       }
     }
