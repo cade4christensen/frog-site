@@ -167,8 +167,8 @@ export class Pond {
     ctx.ellipse(this.pool.cx, this.pool.cy, this.pool.rx, this.pool.ry, 0, 0, Math.PI * 2);
     ctx.clip();
     this.drawWater();
-    this.drawPads();
     this.drawRipples(dt);
+    this.drawPads(); // on top: rings pass under the pads
     ctx.restore();
     this.drawRim();
     this.drawGrass();
@@ -240,6 +240,8 @@ export class Pond {
     const { ctx } = this;
     const { cx, cy, rx, ry } = this.pool;
     ctx.lineWidth = (this.w / this.canvas.width) * 1.1;
+    // Pads sit on the water, so they cover it (and any ripple) rather than adding to it.
+    ctx.globalCompositeOperation = "source-over";
     for (const pad of this.pads) {
       const bob = this.reduceMotion ? 0 : Math.sin(this.time * 0.8 + pad.phase) * ry * 0.04;
       const x = cx + pad.x * rx;
@@ -265,6 +267,7 @@ export class Pond {
         ctx.fill();
       }
     }
+    ctx.globalCompositeOperation = "lighter";
   }
 
   /** Short grass all round the bank: little fans of blades leaning away from the water. */
