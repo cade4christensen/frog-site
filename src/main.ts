@@ -65,8 +65,7 @@ function circleHitsBox(c: THREE.Vector3, r: number, b: Box) {
   return dx * dx + dy * dy < r * r;
 }
 scene.add(frog.root);
-const loader = document.querySelector<HTMLElement>(".loader");
-const frogReady = frog.load((share) => loader?.style.setProperty("--progress", share.toFixed(3)));
+const frogReady = frog.load();
 // For poking at its behavior from the console while developing.
 if (import.meta.env.DEV) Object.assign(window, { frog, world: () => ({ textBoxes, perches, surfaces }) });
 
@@ -343,9 +342,9 @@ function scrolled() {
   camera.updateProjectionMatrix();
 }
 
-// Hold the scene back until the frog has loaded, so the pond and the frog
-// appear together rather than the frog popping in afterwards.
-frogReady.then(() => {
+// The pond is the loading screen: it draws from the first frame, and the
+// frog takes its place on the name (still, tucked up) once its model is in.
+{
   const clock = new THREE.Clock();
   const step = (dt: number) => {
     scrolled();
@@ -355,16 +354,14 @@ frogReady.then(() => {
     dither.render(scene, camera);
   };
   renderer.setAnimationLoop(() => step(Math.min(clock.getDelta(), 0.1)));
-  // First frame drawn: fade the scene in over the loader, then drop the loader.
-  // (Dev: ?loader keeps it up so it can be looked at.)
-  if (import.meta.env.DEV && location.search.includes("loader")) return;
-  loader?.style.setProperty("--progress", "1");
-  requestAnimationFrame(() => {
-    document.body.classList.add("ready");
-    setTimeout(() => loader?.remove(), 700);
-  });
+  requestAnimationFrame(() => document.body.classList.add("ready"));
   // Dev: step frames by hand (the browser pauses the loop while the page is hidden).
   if (import.meta.env.DEV) Object.assign(window, { step });
+}
+frogReady.then(() => {
+  // Sit it on the name now that there's a frog to sit.
+  const name = perches.find((s) => s.id === "name");
+  if (name) frog.placeOn(name, name.a.distanceTo(name.b) * 0.5, 1);
 });
 
 // A clicked link opens in a new tab but keeps focus here, so coming back

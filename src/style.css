@@ -51,61 +51,12 @@ body {
   height: 100%;
   display: block;
   pointer-events: none;
-  /* Held back until the frog has loaded, then faded in over the loader. */
+  /* Faded in on the first frame, so the pond never pops. */
   opacity: 0;
-  transition: opacity 0.6s ease;
+  transition: opacity 0.5s ease;
 }
 body.ready #scene {
   opacity: 1;
-}
-
-/*
- * While the frog model downloads: a bar of dot cells where the pond will be,
- * filling with the download, and a word underneath. Dots match the scene's
- * 4px grid so the bar looks like part of the pond when the pond fades in.
- */
-.loader {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  transition: opacity 0.4s ease;
-  --progress: 0;
-}
-.loader-bar {
-  --cells: 32;
-  width: calc(var(--cells) * 8px - 4px);
-  height: 4px;
-  /* Dim track of dots, with lit dots over the done share. */
-  background:
-    linear-gradient(var(--accent), var(--accent)) left / calc(var(--progress) * 100%) 100% no-repeat,
-    var(--dim);
-  -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
-  mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
-  transition: background-size 0.25s ease-out;
-  animation: loader-breathe 1.6s ease-in-out infinite;
-}
-.loader-text {
-  font-size: 0.62rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-@keyframes loader-breathe {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-body.ready .loader {
-  opacity: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .loader-bar {
-    animation: none;
-  }
 }
 
 /* ── Landing: the frog's screen, one viewport tall ── */
