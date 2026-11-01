@@ -22,9 +22,11 @@ type LilyPad = {
   vy: number;
 };
 type PadLook = "plain" | "veined" | "flower" | "nibbled";
-type Reed = { at: number; height: number; lean: number; phase: number; head: boolean };
+/** Something that can be brushed by the pointer: an extra lean that springs back. */
+type Brushable = { brush: number; brushV: number };
+type Reed = Brushable & { at: number; height: number; lean: number; phase: number; head: boolean };
 /** A tuft of grass on the bank: `angle` round the pool, a few short blades. */
-type Tuft = { angle: number; out: number; blades: { lean: number; height: number }[]; phase: number };
+type Tuft = Brushable & { angle: number; out: number; blades: { lean: number; height: number }[]; phase: number };
 type Firefly = { x: number; y: number; age: number; life: number; roam: number; speed: number; phase: number };
 /** The pool as it appears on screen (CSS px): an ellipse. */
 export type PoolShape = { cx: number; cy: number; rx: number; ry: number };
@@ -62,7 +64,12 @@ export class Pond {
       const y = e.clientY + window.scrollY;
       if (this.inPool(x, y)) this.addRipple(x, y, this.pool.rx * 0.9, 1);
     });
-    window.addEventListener("pointermove", (e) => this.trail(e.clientX + window.scrollX, e.clientY + window.scrollY, e.timeStamp));
+    window.addEventListener("pointermove", (e) => {
+      const x = e.clientX + window.scrollX;
+      const y = e.clientY + window.scrollY;
+      this.trail(x, y, e.timeStamp);
+      this.brush(x, y, e.movementX);
+    });
   }
 
   // Where the pointer last left a wake ripple, so a drag leaves an evenly spaced trail.
@@ -137,6 +144,8 @@ export class Pond {
             height: (0.25 + Math.random() ** 2 * 0.95) * tall, // in pond depths (ry)
           })),
           phase: Math.random() * Math.PI * 2,
+          brush: 0,
+          brushV: 0,
         });
       }
     }
@@ -149,9 +158,46 @@ export class Pond {
             lean: side * (0.05 + Math.random() * 0.25),
             phase: Math.random() * Math.PI * 2,
             head: Math.random() < 0.5, // some have cattail heads
+            brush: 0,
+            brushV: 0,
           });
         }
       }
+    }
+  }
+
+  /**
+   * The pointer passing through grass or reeds pushes them lightly the way
+   * it's moving; they spring back on their own (see settle).
+   */
+  private brush(x: number, y: number, dx: number) {
+    const { cx, cy, rx, ry } = this.pool;
+    if (rx <= 0 || this.reduceMotion || !dx) return;
+    const nudge = Math.max(-1, Math.min(1, dx / 12)) * 0.25;
+    for (const t of this.tufts) {
+      const bx = cx + Math.cos(t.angle) * rx * t.out;
+      const by = cy + Math.sin(t.angle) * ry * t.out;
+      const tall = Math.max(...t.blades.map((b) => b.height)) * ry;
+      if (Math.abs(x - bx) < 14 && y < by + 4 && y > by - tall) t.brushV += nudge * 8;
+    }
+    for (const r of this.reeds) {
+      const bx = cx + r.at * rx;
+      const by = cy + ry * 0.3;
+      const h = r.height * ry;
+      // A reed leans; the pointer has to be near the stalk itself.
+      const u = Math.max(0, Math.min(1, (by - y) / h));
+      const sx = bx + r.lean * h * u * u; // roughly where the stalk is at that height
+      if (Math.abs(x - sx) < 10 && y < by && y > by - h) r.brushV += nudge * 5;
+    }
+  }
+
+  /** Brushed grass and reeds swing back: a light, quickly damped spring. */
+  private settle(dt: number) {
+    for (const b of [...this.tufts, ...this.reeds]) {
+      if (!b.brush && !b.brushV) continue;
+      b.brushV += (-b.brush * 40 - b.brushV * 6) * dt;
+      b.brush += b.brushV * dt;
+      if (Math.abs(b.brush) < 0.001 && Math.abs(b.brushV) < 0.001) b.brush = b.brushV = 0;
     }
   }
 
@@ -200,6 +246,7 @@ export class Pond {
     this.drawPads(); // on top: rings pass under the pads
     ctx.restore();
     this.drawRim();
+    this.settle(dt);
     this.drawGrass();
     this.drawReeds();
     this.drawFireflies(dt);
@@ -438,9 +485,9 @@ export class Pond {
       const sway = this.reduceMotion ? 0 : Math.sin(this.time * 0.7 + t.phase) * 0.04;
       for (const b of t.blades) {
         const h = b.height * ry;
-        const lean = outward * 0.1 + b.lean + sway;
+        const lean = outward * 0.1 + b.lean + sway + t.brush;
         // Straight most of the way up, then the tip bends over a little like a real blade.
-        const bend = (outward * 0.4 + b.lean * 2) * h * 0.25;
+        const bend = (outward * 0.4 + b.lean * 2 + t.brush) * h * 0.25;
         const tipX = baseX + lean * h + bend;
         const tipY = baseY - h;
         ctx.beginPath();
@@ -463,7 +510,7 @@ export class Pond {
       const baseY = cy + ry * 0.3;
       const h = r.height * ry;
       const sway = this.reduceMotion ? 0 : Math.sin(this.time * 0.6 + r.phase) * h * 0.04;
-      const tipX = baseX + (r.lean * h) + sway;
+      const tipX = baseX + (r.lean + r.brush) * h + sway;
       const tipY = baseY - h;
       ctx.beginPath();
       ctx.moveTo(baseX, baseY);
