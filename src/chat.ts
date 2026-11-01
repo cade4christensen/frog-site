@@ -1,5 +1,5 @@
-/** The "Ask about Cade" widget, backed by a small Worker in front of Gemini. */
-const CHAT_URL = "https://portfolio-chat.frog-site.workers.dev/chat";
+/** The "Ask about Cade" widget, answered by this site's own Worker (worker/chat.js) in front of Gemini. */
+const CHAT_URL = "/chat";
 
 export function startChat() {
   const toggle = document.getElementById("chat-toggle") as HTMLButtonElement | null;

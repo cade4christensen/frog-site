@@ -1,7 +1,10 @@
+import { handleChat } from "./chat.js";
+
 /**
  * In front of the static site: sends plain-http and www visitors to
  * https://cade.work (one canonical address, so link previews and search
- * engines see the same page), then hands everything else to the assets.
+ * engines see the same page), answers the chat widget at /chat, and hands
+ * everything else to the assets.
  */
 export default {
   async fetch(request, env) {
@@ -13,6 +16,7 @@ export default {
       url.hostname = "cade.work";
       return Response.redirect(url.toString(), 301);
     }
+    if (url.pathname === "/chat") return handleChat(request, env);
     return env.ASSETS.fetch(request);
   },
 };
